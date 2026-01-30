@@ -9,17 +9,15 @@ export const app = express();
 
 app.use(express.json());
 
-const allowed = new Set([
-    env.CORS_ORIGIN,
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-]);
+// Permitir múltiples orígenes desde env (separados por coma)
+const allowedOrigins = new Set(
+    env.CORS_ORIGIN.split(",").map(o => o.trim())
+);
 
 const corsMiddleware = cors({
     origin: (origin, cb) => {
         if (!origin) return cb(null, true);
-        return allowed.has(origin)
+        return allowedOrigins.has(origin)
             ? cb(null, true)
             : cb(new Error("CORS bloqueado"));
     },
@@ -29,14 +27,13 @@ const corsMiddleware = cors({
 });
 
 app.use(corsMiddleware);
-
-// ✅ Preflight (sin romper Express)
 app.options(/.*/, corsMiddleware);
 
 // Rutas
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
 
+// Health check (Render)
 app.get("/health", (req, res) => {
     res.json({ ok: true });
 });
