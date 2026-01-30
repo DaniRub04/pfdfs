@@ -1,4 +1,16 @@
-const API_URL = import.meta.env.VITE_API_URL;
+/* =======================
+   Config
+======================= */
+const RAW_API_URL = import.meta.env.VITE_API_URL;
+
+if (!RAW_API_URL) {
+    throw new Error(
+        "❌ Falta la variable de entorno VITE_API_URL (Vercel / .env)"
+    );
+}
+
+// Quita slash final si existe
+const API_URL = RAW_API_URL.replace(/\/$/, "");
 
 /* =======================
    Token helpers
@@ -37,7 +49,6 @@ async function request(path, options = {}) {
     // No Content
     if (res.status === 204) return null;
 
-    // Intenta JSON, si no, texto
     const contentType = res.headers.get("content-type") || "";
     const data = contentType.includes("application/json")
         ? await res.json().catch(() => ({}))
@@ -58,10 +69,10 @@ async function request(path, options = {}) {
    API pública
 ======================= */
 export const api = {
-    // Salud
+    /* -------- Health -------- */
     health: () => request("/health"),
 
-    // Auth
+    /* -------- Auth -------- */
     register: (payload) =>
         request("/auth/register", {
             method: "POST",
@@ -74,7 +85,6 @@ export const api = {
             body: JSON.stringify(payload),
         });
 
-        // Soporta { token } o { access_token }
         const token = data?.token || data?.access_token;
         if (!token) {
             throw new Error("Login exitoso pero no se recibió token");
@@ -88,6 +98,30 @@ export const api = {
         clearToken();
     },
 
-    // Ruta protegida (ajusta si tu backend usa otra)
+    /* -------- Perfil -------- */
     me: () => request("/profile/me"),
+
+    /* =======================
+       CRUD ejemplo: Autos
+       (ajusta rutas si cambian)
+    ======================= */
+    autos: {
+        list: () => request("/autos"),
+        get: (id) => request(`/autos/${id}`),
+        create: (payload) =>
+            request("/autos", {
+                method: "POST",
+                body: JSON.stringify(payload),
+            }),
+        update: (id, payload) =>
+            request(`/autos/${id}`, {
+                method: "PUT",
+                body: JSON.stringify(payload),
+            }),
+        remove: (id) =>
+            request(`/autos/${id}`, {
+                method: "DELETE",
+            }),
+    },
 };
+
