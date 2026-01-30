@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Autos from "./pages/Autos"; // ✅ nuevo
 import ProtectedRoute from "./ProtectedRoute";
 
 export default function App() {
@@ -16,6 +17,16 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ✅ CRUD de autos en cards */}
+        <Route
+          path="/autos"
+          element={
+            <ProtectedRoute>
+              <Autos />
             </ProtectedRoute>
           }
         />
