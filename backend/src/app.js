@@ -4,6 +4,7 @@ import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import authRoutes from "./routes/auth.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
+import autosRoutes from "./routes/autos.routes.js";
 
 export const app = express();
 
@@ -32,6 +33,7 @@ app.options(/.*/, corsMiddleware);
 // Rutas
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
+app.use("/autos", autosRoutes);
 
 // Health check (Render)
 app.get("/health", (req, res) => {
