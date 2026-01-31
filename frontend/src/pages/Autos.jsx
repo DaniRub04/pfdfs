@@ -39,8 +39,10 @@ export default function Autos() {
     setErr("");
     setLoading(true);
     try {
-      const data = await api.autosList();
-      // tu backend puede devolver {items: []} o [] — soportamos ambos:
+      // ✅ AQUI estaba el error: era api.autosList()
+      const data = await api.autos.list();
+
+      // Soporta [] o {items: []}
       const list = Array.isArray(data) ? data : data.items || [];
       setItems(list);
     } catch (e) {
@@ -86,7 +88,6 @@ export default function Autos() {
   }
 
   function normalizePayload(f) {
-    // convierte a números donde corresponde
     return {
       marca: f.marca.trim(),
       modelo: f.modelo.trim(),
@@ -101,7 +102,6 @@ export default function Autos() {
     e.preventDefault();
     setErr("");
 
-    // validación rápida
     if (!form.marca.trim() || !form.modelo.trim()) {
       setErr("Marca y modelo son obligatorios.");
       return;
@@ -111,9 +111,11 @@ export default function Autos() {
       const payload = normalizePayload(form);
 
       if (mode === "create") {
-        await api.autosCreate(payload);
+        // ✅ AQUI estaba el error: era api.autosCreate(payload)
+        await api.autos.create(payload);
       } else {
-        await api.autosUpdate(currentId, payload);
+        // ✅ AQUI estaba el error: era api.autosUpdate(id, payload)
+        await api.autos.update(currentId, payload);
       }
 
       closeModal();
@@ -127,7 +129,8 @@ export default function Autos() {
     if (!confirm("¿Seguro que quieres eliminar este auto?")) return;
     setErr("");
     try {
-      await api.autosDelete(id);
+      // ✅ AQUI estaba el error: era api.autosDelete(id)
+      await api.autos.remove(id);
       await refresh();
     } catch (e) {
       setErr(e.message);
@@ -189,7 +192,9 @@ export default function Autos() {
                   </p>
                   <p style={styles.cardMeta}>
                     {x.anio ?? "—"} ·{" "}
-                    {x.precio != null ? `$${Number(x.precio).toLocaleString()}` : "—"}
+                    {x.precio != null
+                      ? `$${Number(x.precio).toLocaleString()}`
+                      : "—"}
                   </p>
                 </div>
 
@@ -233,7 +238,11 @@ export default function Autos() {
                   Completa la información del vehículo
                 </p>
               </div>
-              <button style={styles.iconBtn} onClick={closeModal} aria-label="Cerrar">
+              <button
+                style={styles.iconBtn}
+                onClick={closeModal}
+                aria-label="Cerrar"
+              >
                 ✕
               </button>
             </div>
@@ -241,7 +250,7 @@ export default function Autos() {
             {err && <div style={styles.errorBox}>❌ {err}</div>}
 
             <form onSubmit={onSubmit} style={styles.form}>
-              <div style={styles.row}>
+              <div style={styles.row2}>
                 <div style={styles.field}>
                   <label style={styles.label}>Marca *</label>
                   <input
@@ -266,7 +275,7 @@ export default function Autos() {
                 </div>
               </div>
 
-              <div style={styles.row}>
+              <div style={styles.row3}>
                 <div style={styles.field}>
                   <label style={styles.label}>Año</label>
                   <input
@@ -318,7 +327,11 @@ export default function Autos() {
               </div>
 
               <div style={styles.formFooter}>
-                <button type="button" style={styles.ghostBtn} onClick={closeModal}>
+                <button
+                  type="button"
+                  style={styles.ghostBtn}
+                  onClick={closeModal}
+                >
                   Cancelar
                 </button>
                 <button type="submit" style={styles.primaryBtn}>
@@ -493,7 +506,8 @@ const styles = {
   },
 
   form: { padding: 6, display: "grid", gap: 12 },
-  row: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 },
+  row2: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 },
+  row3: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 },
   field: { display: "grid", gap: 6 },
   label: { fontSize: 13, fontWeight: 800, opacity: 0.8 },
   input: {
@@ -502,7 +516,12 @@ const styles = {
     border: "1px solid #e5e7eb",
     outline: "none",
   },
-  formFooter: { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 },
+  formFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 6,
+  },
 };
 
 function badgeStyle(estado) {
@@ -517,7 +536,24 @@ function badgeStyle(estado) {
     whiteSpace: "nowrap",
   };
 
-  if (estado === "vendido") return { ...base, background: "#fee2e2", borderColor: "#fecaca", color: "#991b1b" };
-  if (estado === "apartado") return { ...base, background: "#ffedd5", borderColor: "#fed7aa", color: "#9a3412" };
-  return { ...base, background: "#dcfce7", borderColor: "#bbf7d0", color: "#166534" };
+  if (estado === "vendido")
+    return {
+      ...base,
+      background: "#fee2e2",
+      borderColor: "#fecaca",
+      color: "#991b1b",
+    };
+  if (estado === "apartado")
+    return {
+      ...base,
+      background: "#ffedd5",
+      borderColor: "#fed7aa",
+      color: "#9a3412",
+    };
+  return {
+    ...base,
+    background: "#dcfce7",
+    borderColor: "#bbf7d0",
+    color: "#166534",
+  };
 }
