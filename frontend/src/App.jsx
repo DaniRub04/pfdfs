@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../services/api";
-import "../styles/autos.css";
+import { api } from "./services/api"; // ✅ pages -> services
+
+// ✅ Si TU archivo está en: src/styles/autos.css
+import "./styles/autos.css";
+// Si NO existe ese archivo, comenta la línea de arriba.
 
 const EMPTY_FORM = {
   marca: "",
@@ -24,7 +27,7 @@ export default function Autos() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(null); // auto actual o null
+  const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
   const [error, setError] = useState("");
@@ -34,11 +37,18 @@ export default function Autos() {
     setError("");
     setLoading(true);
     try {
-      const [meData, autosData] = await Promise.all([api.me(), api.autos.list()]);
+      const [meData, autosData] = await Promise.all([
+        api.me(),
+        api.autos.list(),
+      ]);
+
       setMe(meData);
-      setAutos(Array.isArray(autosData) ? autosData : []);
+
+      // soporta [] o { items: [] }
+      const list = Array.isArray(autosData) ? autosData : autosData?.items || [];
+      setAutos(list);
     } catch (e) {
-      setError(e.message || "Error cargando datos");
+      setError(e?.message || "Error cargando datos");
     } finally {
       setLoading(false);
     }
@@ -55,6 +65,7 @@ export default function Autos() {
 
   const autosFiltrados = useMemo(() => {
     const term = q.trim().toLowerCase();
+
     return autos.filter((a) => {
       const matchText =
         !term ||
@@ -63,7 +74,6 @@ export default function Autos() {
         String(a.descripcion || "").toLowerCase().includes(term);
 
       const matchEstado = !estadoFiltro || a.estado === estadoFiltro;
-
       return matchText && matchEstado;
     });
   }, [autos, q, estadoFiltro]);
@@ -106,14 +116,19 @@ export default function Autos() {
     if (!form.marca.trim()) return "Marca es obligatoria";
     if (!form.modelo.trim()) return "Modelo es obligatorio";
 
-    const anio = Number(form.anio);
-    if (!Number.isFinite(anio) || anio < 1900 || anio > 2100) {
-      return "Año inválido (ej: 2022)";
+    // Permite vacío; valida solo si hay valor
+    if (String(form.anio).trim() !== "") {
+      const anio = Number(form.anio);
+      if (!Number.isFinite(anio) || anio < 1900 || anio > 2100) {
+        return "Año inválido (ej: 2022)";
+      }
     }
 
-    const precio = Number(form.precio);
-    if (!Number.isFinite(precio) || precio < 0) {
-      return "Precio inválido";
+    if (String(form.precio).trim() !== "") {
+      const precio = Number(form.precio);
+      if (!Number.isFinite(precio) || precio < 0) {
+        return "Precio inválido";
+      }
     }
 
     const estados = new Set(["disponible", "vendido", "apartado"]);
@@ -125,6 +140,7 @@ export default function Autos() {
   async function submit(e) {
     e.preventDefault();
     setError("");
+
     const msg = validate();
     if (msg) return setError(msg);
 
@@ -133,8 +149,8 @@ export default function Autos() {
       const payload = {
         marca: form.marca.trim(),
         modelo: form.modelo.trim(),
-        anio: Number(form.anio),
-        precio: Number(form.precio),
+        anio: String(form.anio).trim() === "" ? null : Number(form.anio),
+        precio: String(form.precio).trim() === "" ? null : Number(form.precio),
         estado: form.estado,
         descripcion: form.descripcion?.trim() || null,
       };
@@ -151,7 +167,7 @@ export default function Autos() {
       await loadAll();
       setTimeout(() => setToast(""), 1800);
     } catch (e2) {
-      setError(e2.message || "Error guardando");
+      setError(e2?.message || "Error guardando");
     } finally {
       setSaving(false);
     }
@@ -168,7 +184,7 @@ export default function Autos() {
       await loadAll();
       setTimeout(() => setToast(""), 1800);
     } catch (e) {
-      setError(e.message || "Error eliminando");
+      setError(e?.message || "Error eliminando");
     }
   }
 
@@ -251,15 +267,17 @@ export default function Autos() {
                     {a.marca} <span className="muted">{a.modelo}</span>
                   </div>
                   <div className="card-meta">
-                    <span>{a.anio}</span>
+                    <span>{a.anio ?? "—"}</span>
                     <span className="dot" />
-                    <span>${Number(a.precio).toLocaleString("es-MX")}</span>
+                    <span>
+                      {a.precio == null
+                        ? "—"
+                        : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                    </span>
                   </div>
                 </div>
 
-                <span className={`badge badge-${a.estado}`}>
-                  {a.estado}
-                </span>
+                <span className={`badge badge-${a.estado}`}>{a.estado}</span>
               </div>
 
               {a.descripcion && <p className="card-desc">{a.descripcion}</p>}
@@ -277,7 +295,6 @@ export default function Autos() {
         </div>
       )}
 
-      {/* MODAL (sin archivo extra) */}
       {modalOpen && (
         <div className="modal-backdrop" onMouseDown={closeModal}>
           <div
@@ -307,6 +324,7 @@ export default function Autos() {
                     placeholder="Toyota"
                   />
                 </div>
+
                 <div>
                   <label className="label">Modelo</label>
                   <input
@@ -344,7 +362,12 @@ export default function Autos() {
 
                 <div className="span-2">
                   <label className="label">Estado</label>
-                  <select className="select" name="estado" value={form.estado} onChange={onChange}>
+                  <select
+                    className="select"
+                    name="estado"
+                    value={form.estado}
+                    onChange={onChange}
+                  >
                     <option value="disponible">Disponible</option>
                     <option value="apartado">Apartado</option>
                     <option value="vendido">Vendido</option>
@@ -365,7 +388,12 @@ export default function Autos() {
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={closeModal} disabled={saving}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={closeModal}
+                  disabled={saving}
+                >
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
