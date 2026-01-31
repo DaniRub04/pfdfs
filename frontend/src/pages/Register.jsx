@@ -61,7 +61,6 @@ export default function Register() {
           <div className="feature-list">
             <div className="feature">
               <span className="feature-dot" />
-              <span>Diseño oscuro tipo streaming: simple y familiar.</span>
             </div>
             <div className="feature">
               <span className="feature-dot" />
