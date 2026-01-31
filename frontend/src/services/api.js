@@ -4,7 +4,7 @@
 const RAW_API_URL = import.meta.env.VITE_API_URL;
 
 if (!RAW_API_URL) {
-    throw new Error("❌ Falta la variable de entorno VITE_API_URL (Vercel / .env)");
+    throw new Error("❌ Falta VITE_API_URL (Vercel / .env)");
 }
 
 const API_URL = RAW_API_URL.replace(/\/+$/, "");
@@ -26,6 +26,17 @@ export function clearToken() {
 
 export function isLoggedIn() {
     return !!getToken();
+}
+
+/** ✅ Si no hay token, lanza un error claro para UI */
+function requireAuth() {
+    const t = getToken();
+    if (!t) {
+        const err = new Error("No has iniciado sesión");
+        err.status = 401;
+        throw err;
+    }
+    return t;
 }
 
 /* =======================
@@ -50,11 +61,12 @@ function toQueryString(params = {}) {
 ======================= */
 async function request(path, options = {}) {
     const safePath = withLeadingSlash(path);
+
+    // si te pasan token explícito úsalo, si no usa el localStorage
     const token = options.token ?? getToken();
     const body = options.body;
 
-    const isFormData =
-        typeof FormData !== "undefined" && body instanceof FormData;
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
     const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -81,6 +93,7 @@ async function request(path, options = {}) {
         ? await res.json().catch(() => ({}))
         : await res.text().catch(() => "");
 
+    // ✅ si el backend dice 401, limpiamos token
     if (res.status === 401) {
         clearToken();
     }
@@ -88,10 +101,18 @@ async function request(path, options = {}) {
     if (!res.ok) {
         const message =
             typeof data === "object"
-                ? data?.message || data?.error || data?.details || data?.msg || data?.mensaje || `HTTP ${res.status}`
+                ? data?.message ||
+                data?.error ||
+                data?.details ||
+                data?.msg ||
+                data?.mensaje ||
+                `HTTP ${res.status}`
                 : data || `HTTP ${res.status}`;
 
-        throw new Error(message);
+        const err = new Error(message);
+        err.status = res.status;
+        err.data = data;
+        throw err;
     }
 
     return data;
@@ -115,7 +136,8 @@ const api = {
             body: JSON.stringify(payload),
         });
 
-        const token = data?.token || data?.access_token;
+        // ✅ tu backend devuelve `token`
+        const token = data?.token;
         if (!token) throw new Error("Login exitoso pero no se recibió token");
 
         setToken(token);
@@ -124,44 +146,51 @@ const api = {
 
     logout: () => clearToken(),
 
-    me: () => request("/profile/me"),
+    // ✅ Seguro: si no hay token, ni intenta pegarle al backend
+    me: async () => {
+        if (!isLoggedIn()) return null;
+        return request("/profile/me");
+    },
 
     autos: {
-        list: (params) => request(`/autos${toQueryString(params)}`),
-        get: (id) => request(`/autos/${id}`),
+        list: (params) => {
+            requireAuth();
+            return request(`/autos${toQueryString(params)}`);
+        },
 
-        create: (payload) =>
-            request("/autos", {
+        get: (id) => {
+            requireAuth();
+            return request(`/autos/${id}`);
+        },
+
+        create: (payload) => {
+            requireAuth();
+            return request("/autos", {
                 method: "POST",
                 body: JSON.stringify(payload),
-            }),
+            });
+        },
 
-        update: (id, payload) =>
-            request(`/autos/${id}`, {
+        update: (id, payload) => {
+            requireAuth();
+            return request(`/autos/${id}`, {
                 method: "PUT",
                 body: JSON.stringify(payload),
-            }),
+            });
+        },
 
-        remove: (id) =>
-            request(`/autos/${id}`, {
+        remove: (id) => {
+            requireAuth();
+            return request(`/autos/${id}`, {
                 method: "DELETE",
-            }),
+            });
+        },
     },
 };
 
-/* =======================
-   ✅ Aliases para código viejo
-   (para que no truene si tu UI usa autosList, etc.)
-======================= */
-api.autosList = (params) => api.autos.list(params);
-api.autosGet = (id) => api.autos.get(id);
-api.autosCreate = (payload) => api.autos.create(payload);
-api.autosUpdate = (id, payload) => api.autos.update(id, payload);
-api.autosDelete = (id) => api.autos.remove(id);
-
+// (Opcional) Exponer api en window para debug rápido en consola
 if (typeof window !== "undefined") {
     window.api = api;
 }
-
 
 export { api };
