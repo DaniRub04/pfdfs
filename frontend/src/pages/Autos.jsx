@@ -39,10 +39,10 @@ export default function Autos() {
     setErr("");
     setLoading(true);
     try {
-      // ✅ AQUI estaba el error: era api.autosList()
+      // ✅ correcto: api.autos.list()
       const data = await api.autos.list();
 
-      // Soporta [] o {items: []}
+      // soporta [] o {items:[]}
       const list = Array.isArray(data) ? data : data.items || [];
       setItems(list);
     } catch (e) {
@@ -111,10 +111,10 @@ export default function Autos() {
       const payload = normalizePayload(form);
 
       if (mode === "create") {
-        // ✅ AQUI estaba el error: era api.autosCreate(payload)
+        // ✅ correcto: api.autos.create(payload)
         await api.autos.create(payload);
       } else {
-        // ✅ AQUI estaba el error: era api.autosUpdate(id, payload)
+        // ✅ correcto: api.autos.update(id, payload)
         await api.autos.update(currentId, payload);
       }
 
@@ -129,7 +129,7 @@ export default function Autos() {
     if (!confirm("¿Seguro que quieres eliminar este auto?")) return;
     setErr("");
     try {
-      // ✅ AQUI estaba el error: era api.autosDelete(id)
+      // ✅ correcto: api.autos.remove(id)
       await api.autos.remove(id);
       await refresh();
     } catch (e) {
@@ -543,6 +543,7 @@ function badgeStyle(estado) {
       borderColor: "#fecaca",
       color: "#991b1b",
     };
+
   if (estado === "apartado")
     return {
       ...base,
@@ -550,6 +551,7 @@ function badgeStyle(estado) {
       borderColor: "#fed7aa",
       color: "#9a3412",
     };
+
   return {
     ...base,
     background: "#dcfce7",
