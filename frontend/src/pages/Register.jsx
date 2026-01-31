@@ -59,9 +59,7 @@ export default function Register() {
           </div>
 
           <div className="feature-list">
-            <div className="feature">
-              <span className="feature-dot" />
-            </div>
+           
             <div className="feature">
               <span className="feature-dot" />
               <span>Verificación por correo antes de iniciar sesión.</span>
