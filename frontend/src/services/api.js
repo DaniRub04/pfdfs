@@ -159,4 +159,9 @@ api.autosCreate = (payload) => api.autos.create(payload);
 api.autosUpdate = (id, payload) => api.autos.update(id, payload);
 api.autosDelete = (id) => api.autos.remove(id);
 
+if (typeof window !== "undefined") {
+    window.api = api;
+}
+
+
 export { api };
