@@ -21,10 +21,7 @@ export const getAutoById = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const { rows } = await pool.query(
-            "SELECT * FROM autos WHERE id = $1",
-            [id]
-        );
+        const { rows } = await pool.query("SELECT * FROM autos WHERE id = $1", [id]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: "Auto no encontrado" });
@@ -41,13 +38,13 @@ export const getAutoById = async (req, res, next) => {
 ========================= */
 export const createAuto = async (req, res, next) => {
     try {
-        const { marca, modelo, anio, precio, descripcion } = req.body;
+        const { marca, modelo, anio, precio, descripcion, foto_url } = req.body;
 
         const { rows } = await pool.query(
-            `INSERT INTO autos (marca, modelo, anio, precio, descripcion)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING *`,
-            [marca, modelo, anio, precio, descripcion]
+            `INSERT INTO autos (marca, modelo, anio, precio, descripcion, foto_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+            [marca, modelo, anio, precio, descripcion, foto_url ?? null]
         );
 
         res.status(201).json(rows[0]);
@@ -62,16 +59,21 @@ export const createAuto = async (req, res, next) => {
 export const updateAuto = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { marca, modelo, anio, precio, estado, descripcion } = req.body;
+        const { marca, modelo, anio, precio, estado, descripcion, foto_url } = req.body;
 
         const { rowCount, rows } = await pool.query(
             `UPDATE autos
-             SET marca=$1, modelo=$2, anio=$3, precio=$4,
-                 estado=$5, descripcion=$6,
-                 actualizado_en=now()
-             WHERE id=$7
-             RETURNING *`,
-            [marca, modelo, anio, precio, estado, descripcion, id]
+       SET marca=$1,
+           modelo=$2,
+           anio=$3,
+           precio=$4,
+           estado=$5,
+           descripcion=$6,
+           foto_url=$7,
+           actualizado_en=now()
+       WHERE id=$8
+       RETURNING *`,
+            [marca, modelo, anio, precio, estado, descripcion, foto_url ?? null, id]
         );
 
         if (rowCount === 0) {
@@ -91,10 +93,7 @@ export const deleteAuto = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const { rowCount } = await pool.query(
-            "DELETE FROM autos WHERE id = $1",
-            [id]
-        );
+        const { rowCount } = await pool.query("DELETE FROM autos WHERE id = $1", [id]);
 
         if (rowCount === 0) {
             return res.status(404).json({ message: "Auto no encontrado" });

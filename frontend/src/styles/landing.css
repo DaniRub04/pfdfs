@@ -1,19 +1,54 @@
-/* base */
+/* =========================================================
+   LANDING.CSS (Netflix/Amazon vibe - limpio y consistente)
+   Clases usadas: .lp-*
+   ========================================================= */
+
+:root{
+  --bg0: #07090c;
+  --bg1: #0c1117;
+  --card: rgba(255,255,255,.06);
+  --card2: rgba(255,255,255,.08);
+  --border: rgba(255,255,255,.10);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.70);
+
+  /* Brand */
+  --green: #1f7a57;
+  --green2:#2aa070;
+  --danger: #ef4444;
+}
+
+/* ------------------------------
+   BASE
+------------------------------ */
 .lp * { box-sizing: border-box; }
-.lp {
+
+html, body { height: 100%; }
+
+body{
+  margin: 0;
+  color: var(--text);
+  background:
+          radial-gradient(1100px 600px at 15% 15%, rgba(42,160,112,.14), transparent 60%),
+          radial-gradient(900px 500px at 85% 30%, rgba(255,255,255,.06), transparent 60%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+}
+
+.lp{
   min-height: 100vh;
-  background: #0f0f10;
   color: #f3f4f6;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
 }
 
-/* header */
+/* ------------------------------
+   HEADER
+------------------------------ */
 .lp-header{
   position: fixed;
   inset: 0 0 auto 0;
   height: 70px;
-  background: rgba(18,18,20,0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(18,18,20,0.80);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255,255,255,0.08);
   display:flex;
   align-items:center;
@@ -21,6 +56,7 @@
   padding: 0 16px;
   z-index: 1000;
 }
+
 .lp-icon-btn{
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.04);
@@ -29,7 +65,14 @@
   padding: 10px 12px;
   font-size: 18px;
   cursor:pointer;
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
 }
+.lp-icon-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.18);
+}
+
 .lp-logo{
   font-size: 22px;
   font-weight: 900;
@@ -42,6 +85,7 @@
 .lp-right{ display:flex; align-items:center; gap: 12px; }
 
 .lp-user{ display:flex; align-items:center; gap: 10px; }
+
 .lp-user-mail{
   font-size: 13px;
   opacity: .85;
@@ -51,7 +95,9 @@
   white-space: nowrap;
 }
 
-/* search icon circle */
+/* ------------------------------
+   SEARCH ICON
+------------------------------ */
 .lp-search{
   width: 22px; height: 22px;
   border: 2px solid rgba(255,255,255,0.85);
@@ -71,18 +117,22 @@
 }
 .lp-search:hover{ opacity: 1; }
 
-/* search bar */
+/* ------------------------------
+   SEARCH BAR
+------------------------------ */
 .lp-searchbar{
   position: fixed;
   top: 70px;
   left:0; right:0;
-  background: rgba(18,18,20,0.9);
+  background: rgba(18,18,20,0.86);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255,255,255,0.08);
   padding: 14px 16px;
   display:none;
   z-index: 900;
 }
 .lp-searchbar.active{ display:block; }
+
 .lp-searchbar input{
   width:100%;
   padding: 12px 14px;
@@ -92,15 +142,22 @@
   color:#fff;
   outline: none;
 }
+.lp-searchbar input:focus{
+  border-color: rgba(42,160,112,.55);
+  box-shadow: 0 0 0 4px rgba(42,160,112,.18);
+}
 
-/* sidebar */
+/* ------------------------------
+   SIDEBAR
+------------------------------ */
 .lp-sidebar{
   position: fixed;
   top: 70px;
   left: -280px;
   width: 280px;
   height: calc(100vh - 70px);
-  background: rgba(18,18,20,0.92);
+  background: rgba(18,18,20,0.90);
+  backdrop-filter: blur(12px);
   border-right: 1px solid rgba(255,255,255,0.08);
   padding: 18px;
   transition: left .25s ease;
@@ -108,42 +165,63 @@
 }
 .lp-sidebar.active{ left: 0; }
 .lp-sidebar h3{ margin: 6px 0 14px; }
+
 .lp-sidebar ul{ list-style:none; padding:0; margin:0; }
+
 .lp-sidebar li{
   padding: 12px 6px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   cursor:pointer;
   opacity: .9;
+  transition: opacity .15s ease;
 }
 .lp-sidebar li:hover{ opacity: 1; }
 
-/* main */
+/* ------------------------------
+   MAIN
+------------------------------ */
 .lp-main{
   padding: 110px 18px 40px;
   max-width: 1150px;
   margin: 0 auto;
 }
 
-/* hero */
+/* ------------------------------
+   HERO (más premium)
+------------------------------ */
 .lp-hero{
-  background: linear-gradient(90deg, rgba(0,0,0,0.75), rgba(255,255,255,0.04));
-  border: 1px solid rgba(255,255,255,0.10);
+  position: relative;
   border-radius: 18px;
-  padding: 46px 28px;
+  padding: 54px 28px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+          radial-gradient(900px 400px at 10% 20%, rgba(229,9,20,.10), transparent 60%),
+          radial-gradient(900px 400px at 80% 25%, rgba(42,160,112,.14), transparent 60%),
+          linear-gradient(90deg, rgba(0,0,0,0.78), rgba(255,255,255,0.05));
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+  overflow:hidden;
 }
+
 .lp-hero h1{
-  font-size: clamp(32px, 5vw, 44px);
-  letter-spacing: -0.7px;
-  margin: 0 0 10px;
+  font-size: clamp(32px, 5vw, 46px);
+  letter-spacing: -0.8px;
+  margin: 0 0 12px;
 }
+
 .lp-hero p{
   margin: 0 0 18px;
-  opacity: .85;
+  opacity: .86;
+  max-width: 62ch;
+  line-height: 1.45;
 }
+
 .lp-hero-cta{ display:flex; gap: 10px; flex-wrap: wrap; }
 
-/* sections */
+/* ------------------------------
+   SECTIONS
+------------------------------ */
 .lp-section{ margin-top: 34px; }
+
 .lp-section-head{
   display:flex;
   align-items:flex-end;
@@ -151,59 +229,76 @@
   gap: 14px;
   margin-bottom: 14px;
 }
+
 .lp-section-head h2{ margin:0; font-size: 22px; }
 .lp-section-head p{ margin:0; opacity:.8; font-size: 13px; }
 
 .lp-market-actions{ display:flex; gap:10px; }
 
-/* buttons */
+/* ------------------------------
+   BUTTONS (más “empresa”)
+------------------------------ */
 .lp-btn{
   border-radius: 14px;
   padding: 10px 14px;
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.04);
   color:#fff;
-  font-weight: 800;
+  font-weight: 900;
   cursor:pointer;
   text-decoration: none;
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap: 8px;
+  transition: transform .10s ease, background .15s ease, border-color .15s ease;
 }
-.lp-btn:hover{ background: rgba(255,255,255,0.07); }
+.lp-btn:hover{
+  background: rgba(255,255,255,0.07);
+  transform: translateY(-1px);
+}
+
 .lp-btn-primary{
-  background: rgba(16,185,129,0.22);
-  border-color: rgba(16,185,129,0.45);
+  background: rgba(42,160,112,0.20);
+  border-color: rgba(42,160,112,0.48);
 }
+.lp-btn-primary:hover{ background: rgba(42,160,112,0.26); }
+
 .lp-btn-danger{
   background: rgba(239,68,68,0.18);
   border-color: rgba(239,68,68,0.35);
 }
-.lp-btn-ghost{
-  background: rgba(255,255,255,0.03);
-}
+.lp-btn-danger:hover{ background: rgba(239,68,68,0.24); }
 
-/* models grid */
+.lp-btn-ghost{ background: rgba(255,255,255,0.03); }
+
+/* ------------------------------
+   MODELS GRID
+------------------------------ */
 .lp-model-grid{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
+
 .lp-model-card{
   border-radius: 16px;
   overflow:hidden;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.02);
+  box-shadow: 0 14px 36px rgba(0,0,0,.35);
 }
+
 .lp-model-card img{
   width:100%;
   height: 240px;
   object-fit: cover;
   display:block;
-  transition: transform .25s ease;
+  transition: transform .25s ease, filter .25s ease;
+  filter: saturate(1.05) contrast(1.05);
 }
 .lp-model-card:hover img{ transform: scale(1.06); }
+
 .lp-price{
   padding: 12px 14px;
   font-weight: 900;
@@ -211,26 +306,33 @@
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 
-/* market cards */
+/* ------------------------------
+   MARKET CARDS
+------------------------------ */
 .lp-cards{
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
   gap: 14px;
 }
+
 .lp-card{
   border-radius: 16px;
   padding: 14px;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.03);
+  box-shadow: 0 12px 30px rgba(0,0,0,.25);
 }
+
 .lp-card-head{
   display:flex;
   justify-content:space-between;
   gap: 12px;
   align-items:flex-start;
 }
+
 .lp-card-title{ font-weight: 900; font-size: 16px; }
 .lp-card-title span{ opacity: .75; font-weight: 700; }
+
 .lp-card-meta{
   margin-top: 6px;
   font-size: 12px;
@@ -239,16 +341,26 @@
   align-items:center;
   gap: 8px;
 }
+
 .lp-dot{
   width: 4px; height: 4px;
   border-radius: 999px;
   background: rgba(255,255,255,0.5);
   display:inline-block;
 }
-.lp-desc{ margin: 10px 0 0; opacity: .9; line-height: 1.4; min-height: 40px; }
+
+.lp-desc{
+  margin: 10px 0 0;
+  opacity: .9;
+  line-height: 1.4;
+  min-height: 40px;
+}
+
 .lp-card-foot{ margin-top: 12px; }
 
-/* badges */
+/* ------------------------------
+   BADGES
+------------------------------ */
 .lp-badge{
   padding: 6px 10px;
   border-radius: 999px;
@@ -258,6 +370,7 @@
   background: rgba(255,255,255,0.04);
   white-space: nowrap;
 }
+
 .lp-badge-disponible{
   border-color: rgba(34,197,94,0.35);
   background: rgba(34,197,94,0.12);
@@ -271,7 +384,9 @@
   background: rgba(239,68,68,0.12);
 }
 
-/* alerts */
+/* ------------------------------
+   ALERTS
+------------------------------ */
 .lp-alert{
   margin-top: 12px;
   padding: 10px 12px;
@@ -281,7 +396,9 @@
   font-weight: 800;
 }
 
-/* skeletons */
+/* ------------------------------
+   SKELETONS
+------------------------------ */
 .lp-skeleton-grid{
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
@@ -295,7 +412,9 @@
   background: rgba(255,255,255,0.03);
 }
 
-/* empty */
+/* ------------------------------
+   EMPTY
+------------------------------ */
 .lp-empty{
   margin-top: 12px;
   border: 1px dashed rgba(255,255,255,0.18);
@@ -309,7 +428,9 @@
   flex-wrap: wrap;
 }
 
-/* about */
+/* ------------------------------
+   ABOUT
+------------------------------ */
 .lp-about{
   border-radius: 18px;
   padding: 18px;
@@ -318,7 +439,9 @@
 }
 .lp-about h2{ margin:0 0 10px; }
 
-/* modal */
+/* ------------------------------
+   MODAL
+------------------------------ */
 .lp-modal{
   display:none;
   position: fixed;
@@ -339,16 +462,7 @@
   padding: 16px;
 }
 .lp-modal-content h2{ margin: 4px 0 12px; }
-.lp-modal-content input{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.04);
-  color:#fff;
-  outline:none;
-  margin-bottom: 10px;
-}
+
 .lp-modal-content button{
   width:100%;
   padding: 12px 12px;
@@ -359,10 +473,69 @@
   font-weight: 900;
   cursor:pointer;
 }
+
 .lp-modal-foot{ margin-top: 10px; }
 
-/* responsive */
+/* ------------------------------
+   RESPONSIVE
+------------------------------ */
 @media (max-width: 900px){
   .lp-model-grid{ grid-template-columns: 1fr; }
   .lp-user-mail{ display:none; }
+}
+
+/* =========================
+   CARD POSTER (placeholder pro)
+   Usado en Landing.jsx:
+   .lp-card-img .lp-card-img--placeholder .lp-card-img__brand .lp-card-img__meta
+========================= */
+.lp-card-img{
+  width: 100%;
+  height: 170px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+}
+
+.lp-card-img--placeholder{
+  position: relative;
+  background:
+          radial-gradient(800px 240px at 20% 20%, rgba(42,160,112,.18), transparent 60%),
+          radial-gradient(700px 240px at 80% 30%, rgba(255,255,255,.08), transparent 60%),
+          linear-gradient(180deg, rgba(0,0,0,.35), rgba(255,255,255,.03));
+}
+
+.lp-card-img__brand{
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 18px;
+  opacity: .92;
+  user-select: none;
+}
+
+.lp-card-img__brand span{
+  font-weight: 400;
+  opacity: .7;
+}
+
+.lp-card-img__meta{
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  opacity: .85;
+}
+
+/* (Opcional) hover suave tipo marketplace */
+.lp-card:hover .lp-card-img--placeholder{
+  filter: brightness(1.05);
+  transition: filter .2s ease;
 }

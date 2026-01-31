@@ -63,10 +63,12 @@ async function request(path, options = {}) {
     const safePath = withLeadingSlash(path);
 
     // si te pasan token explícito úsalo, si no usa el localStorage
+    // ✅ para requests públicos: pasar { token: null }
     const token = options.token ?? getToken();
     const body = options.body;
 
-    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    const isFormData =
+        typeof FormData !== "undefined" && body instanceof FormData;
 
     const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -124,11 +126,16 @@ async function request(path, options = {}) {
 const api = {
     health: () => request("/health"),
 
+    // ---------- AUTH ----------
     register: (payload) =>
         request("/auth/register", {
             method: "POST",
             body: JSON.stringify(payload),
         }),
+
+    // ✅ Verificación de correo (NO requiere login)
+    verifyEmail: (token) =>
+        request(`/auth/verify${toQueryString({ token })}`, { token: null }),
 
     login: async (payload) => {
         const data = await request("/auth/login", {
@@ -146,13 +153,21 @@ const api = {
 
     logout: () => clearToken(),
 
-    // ✅ Seguro: si no hay token, ni intenta pegarle al backend
+    // ---------- USER ----------
     me: async () => {
         if (!isLoggedIn()) return null;
         return request("/profile/me");
     },
 
+    // ---------- AUTOS ----------
     autos: {
+        /* ✅ CATÁLOGO PÚBLICO (sin token)
+           Úsalo en Landing.jsx para listar/leer autos sin login */
+        publicList: (params) => request(`/autos${toQueryString(params)}`, { token: null }),
+        publicGet: (id) => request(`/autos/${id}`, { token: null }),
+
+        /* 🔒 CRUD PROTEGIDO (con token)
+           Úsalo en Autos.jsx (inventario/admin) */
         list: (params) => {
             requireAuth();
             return request(`/autos${toQueryString(params)}`);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import "../styles/auth.css";
 
 export default function Login() {
   const nav = useNavigate();
@@ -10,10 +11,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // Evita que quede algo “pegado” por renders/hot reload
+  // Limpia estado en hot reload / navegación
   useEffect(() => {
     setEmail("");
     setPassword("");
+    setMsg("");
   }, []);
 
   async function onSubmit(e) {
@@ -22,8 +24,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await api.login({ email, password });
-      nav("/dashboard");
+      await api.login({ email: email.trim(), password });
+      nav("/autos"); // 🔒 ruta protegida
     } catch (err) {
       setMsg(err.message || "Error al iniciar sesión");
     } finally {
@@ -32,58 +34,95 @@ export default function Login() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 520, padding: 20 }}>
-        <h1>Concesionaria Autos</h1>
-        <p>API: {import.meta.env.VITE_API_URL}</p>
+    <div className="auth-page">
+      <div className="auth-shell">
+        {/* LADO IZQUIERDO */}
+        <aside className="auth-left">
+          <div className="brand">
+            <div className="brand-badge" />
+            <div>
+              <p className="brand-title">AutoTrust</p>
+              <p className="brand-sub">
+                Accede a tu panel para administrar el inventario de autos.
+              </p>
+            </div>
+          </div>
 
-        <h2>Login</h2>
+          <div className="feature-list">
+            <div className="feature">
+              <span className="feature-dot" />
+              <span>Panel seguro con autenticación JWT.</span>
+            </div>
+            <div className="feature">
+              <span className="feature-dot" />
+              <span>Control de estados: disponible, apartado, vendido.</span>
+            </div>
+            <div className="feature">
+              <span className="feature-dot" />
+              <span>Acceso solo después de verificar tu correo.</span>
+            </div>
+          </div>
+        </aside>
 
-        <form
-          onSubmit={onSubmit}
-          style={{ display: "grid", gap: 10 }}
-          autoComplete="off"
-        >
-          <input
-            type="email"
-            name="username"
-            placeholder="Correo"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="username"
-            // Truco anti-autofill en Chromium/Brave:
-            readOnly
-            onFocus={(e) => e.target.removeAttribute("readonly")}
-            required
-          />
+        {/* FORMULARIO */}
+        <main className="auth-card">
+          <h1>Iniciar sesión</h1>
+          <p>Ingresa con tu correo y contraseña.</p>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            // Truco anti-autofill en Chromium/Brave:
-            readOnly
-            onFocus={(e) => e.target.removeAttribute("readonly")}
-            required
-          />
+          {msg && <div className="alert">❌ {msg}</div>}
 
-          <button disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
+          <form className="auth-form" onSubmit={onSubmit} autoComplete="off">
+            <div className="field">
+              <label className="label">Correo electrónico</label>
+              <input
+                className="input"
+                type="email"
+                name="username"
+                placeholder="correo@ejemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                readOnly
+                onFocus={(e) => e.target.removeAttribute("readonly")}
+                required
+              />
+            </div>
 
-          {msg && <p style={{ color: "tomato" }}>❌ {msg}</p>}
-        </form>
+            <div className="field">
+              <label className="label">Contraseña</label>
+              <input
+                className="input"
+                type="password"
+                name="password"
+                placeholder="Tu contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                readOnly
+                onFocus={(e) => e.target.removeAttribute("readonly")}
+                required
+              />
+
+              <div className="row">
+                <Link className="mini-link" to="/register">
+                  Crear cuenta
+                </Link>
+                <Link className="mini-link" to="/">
+                  Volver al inicio
+                </Link>
+              </div>
+            </div>
+
+            <button className="btn btn-primary" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </button>
+
+            <p className="footer-note">
+              Si tu cuenta no está verificada, revisa tu correo y haz clic en el
+              enlace de activación.
+            </p>
+          </form>
+        </main>
       </div>
     </div>
   );

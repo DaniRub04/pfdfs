@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../services/api"; // ✅ desde pages -> services
+import { api } from "../services/api";
 import "../styles/landing.css";
 
 const DEMO_MODELS = [
@@ -19,11 +19,6 @@ export default function Landing() {
 
   // auth
   const [me, setMe] = useState(null);
-  const [authErr, setAuthErr] = useState("");
-
-  // login form (solo UI por ahora; luego lo conectamos con token)
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
   // autos publicados (preview)
   const [items, setItems] = useState([]);
@@ -40,14 +35,12 @@ export default function Landing() {
   }
 
   function openLogin() {
-    setAuthErr("");
     setLoginOpen(true);
     setSidebarOpen(false);
   }
 
   function closeLogin() {
     setLoginOpen(false);
-    setAuthErr("");
   }
 
   async function loadMe() {
@@ -59,15 +52,21 @@ export default function Landing() {
     }
   }
 
+  // ✅ CATÁLOGO PÚBLICO (sin token)
   async function loadAutos() {
     setAutosErr("");
     setLoadingAutos(true);
     try {
-      const data = await api.autos.list();
+      const data = await api.autos.publicList(); // ✅ público
       const list = Array.isArray(data) ? data : data?.items || [];
-      setItems(list);
+
+      // ✅ catálogo público: solo "disponible"
+      const publicList = list.filter((a) => (a.estado || "disponible") === "disponible");
+
+      setItems(publicList);
     } catch (e) {
       setAutosErr(e?.message || "No se pudieron cargar autos");
+      setItems([]);
     } finally {
       setLoadingAutos(false);
     }
@@ -93,42 +92,43 @@ export default function Landing() {
   function logout() {
     api.logout();
     setMe(null);
-    nav("/"); // regresa a home
+    nav("/");
   }
 
-  // ✅ por ahora login es SOLO UI. Luego lo conectamos con tu endpoint real.
-  function fakeLogin(e) {
-    e.preventDefault();
-    setAuthErr("");
-
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!passwordRegex.test(password)) {
-      setAuthErr("La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas y un número.");
-      return;
-    }
-
-    // aquí luego llamaremos api.login(...) y guardaremos token
+  function goToLogin() {
     closeLogin();
-    // nav("/login"); // si quieres mandar a tu vista real de login, lo habilitamos después
+    nav("/login");
   }
 
   return (
     <div className="lp">
       {/* HEADER */}
       <header className="lp-header">
-        <button className="lp-icon-btn" onClick={() => setSidebarOpen((v) => !v)} aria-label="Abrir menú">
+        <button
+          className="lp-icon-btn"
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label="Abrir menú"
+        >
           ☰
         </button>
 
-        <div className="lp-logo" onClick={() => scrollToSection("top")} role="button" tabIndex={0}>
+        <div
+          className="lp-logo"
+          onClick={() => scrollToSection("top")}
+          role="button"
+          tabIndex={0}
+          title="Inicio"
+        >
           AU<span>TRUST</span>
         </div>
 
         <div className="lp-right">
-          {/* Login mini en esquina */}
           {me ? (
             <div className="lp-user">
               <span className="lp-user-mail">{me.email}</span>
+              <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
+                Ir a inventario
+              </button>
               <button className="lp-btn lp-btn-danger" onClick={logout}>
                 Cerrar sesión
               </button>
@@ -139,12 +139,16 @@ export default function Landing() {
                 Iniciar sesión
               </button>
               <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
-                Registrarse
+                Crear cuenta
               </button>
             </div>
           )}
 
-          <button className="lp-search" onClick={() => setSearchOpen((v) => !v)} aria-label="Buscar" />
+          <button
+            className="lp-search"
+            onClick={() => setSearchOpen((v) => !v)}
+            aria-label="Buscar"
+          />
         </div>
       </header>
 
@@ -152,7 +156,7 @@ export default function Landing() {
       <div className={`lp-searchbar ${searchOpen ? "active" : ""}`}>
         <input
           type="text"
-          placeholder="Buscar autos publicados (marca, modelo, estado...)"
+          placeholder="Buscar autos (marca, modelo...)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -166,10 +170,13 @@ export default function Landing() {
           <li onClick={() => scrollToSection("market")}>Autos en venta</li>
           <li onClick={() => scrollToSection("about")}>Nosotros</li>
 
-          <li onClick={() => nav("/autos")}>Ir al CRUD (Inventario)</li>
+          <li onClick={() => nav("/autos")}>Inventario (CRUD)</li>
 
           {!me ? (
-            <li onClick={openLogin}>Iniciar sesión</li>
+            <>
+              <li onClick={() => nav("/login")}>Iniciar sesión</li>
+              <li onClick={() => nav("/register")}>Crear cuenta</li>
+            </>
           ) : (
             <li onClick={logout}>Cerrar sesión</li>
           )}
@@ -181,16 +188,23 @@ export default function Landing() {
         {/* HERO */}
         <section className="lp-hero">
           <div className="lp-hero-content">
-            <h1>Encuentra tu carro ideal</h1>
-            <p>Autos usados verificados • Publica el tuyo en minutos • Compra con confianza</p>
+            <h1>Autos en streaming: rápido, claro, confiable.</h1>
+            <p>Explora autos disponibles. Publica y administra tu inventario con una experiencia moderna.</p>
 
             <div className="lp-hero-cta">
               <button className="lp-btn lp-btn-primary" onClick={() => scrollToSection("market")}>
-                Ver autos en venta
+                Explorar autos
               </button>
-              <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
-                Publicar / Administrar (CRUD)
-              </button>
+
+              {me ? (
+                <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
+                  Administrar inventario
+                </button>
+              ) : (
+                <button className="lp-btn lp-btn-ghost" onClick={() => nav("/register")}>
+                  Crear cuenta
+                </button>
+              )}
             </div>
           </div>
         </section>
@@ -199,7 +213,7 @@ export default function Landing() {
         <section className="lp-section" id="models">
           <div className="lp-section-head">
             <h2>Modelos destacados</h2>
-            <p>Ejemplos visuales (demo). Tus autos reales salen abajo en “Autos en venta”.</p>
+            <p>Ejemplos visuales (demo). Tus autos reales aparecen abajo.</p>
           </div>
 
           <div className="lp-model-grid">
@@ -212,17 +226,25 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* MARKET (realtime list desde API) */}
+        {/* MARKET */}
         <section className="lp-section" id="market">
           <div className="lp-section-head">
             <h2>Autos en venta</h2>
+
             <div className="lp-market-actions">
               <button className="lp-btn lp-btn-ghost" onClick={loadAutos} disabled={loadingAutos}>
                 ↻ Recargar
               </button>
-              <Link className="lp-btn lp-btn-primary" to="/autos">
-                + Publicar auto (CRUD)
-              </Link>
+
+              {me ? (
+                <Link className="lp-btn lp-btn-primary" to="/autos">
+                  + Publicar auto
+                </Link>
+              ) : (
+                <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
+                  Publicar (crear cuenta)
+                </button>
+              )}
             </div>
           </div>
 
@@ -236,25 +258,46 @@ export default function Landing() {
             </div>
           ) : filteredAutos.length === 0 ? (
             <div className="lp-empty">
-              <p>No hay autos publicados todavía.</p>
-              <Link className="lp-btn lp-btn-primary" to="/autos">
-                Publicar el primero
-              </Link>
+              <p>No hay autos disponibles todavía.</p>
+              {me ? (
+                <Link className="lp-btn lp-btn-primary" to="/autos">
+                  Publicar el primero
+                </Link>
+              ) : (
+                <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
+                  Crear cuenta
+                </button>
+              )}
             </div>
           ) : (
             <div className="lp-cards">
               {filteredAutos.map((a) => (
                 <article className="lp-card" key={a.id}>
+                  {/* ✅ Placeholder pro (sin fotos todavía) */}
+                  <div className="lp-card-img lp-card-img--placeholder">
+                    <div className="lp-card-img__brand">
+                      AU<span>TRUST</span>
+                    </div>
+                    <div className="lp-card-img__meta">
+                      <span>{a.marca || "Auto"}</span>
+                      <span className="lp-dot" />
+                      <span>{a.modelo || "—"}</span>
+                    </div>
+                  </div>
+
                   <div className="lp-card-head">
                     <div>
                       <div className="lp-card-title">
                         {a.marca} <span>{a.modelo}</span>
                       </div>
+
                       <div className="lp-card-meta">
                         <span>{a.anio ?? "—"}</span>
                         <span className="lp-dot" />
                         <span>
-                          {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                          {a.precio == null
+                            ? "—"
+                            : `$${Number(a.precio).toLocaleString("es-MX")}`}
                         </span>
                       </div>
                     </div>
@@ -267,9 +310,15 @@ export default function Landing() {
                   <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
 
                   <div className="lp-card-foot">
-                    <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
-                      Ver / Editar en CRUD
-                    </button>
+                    {me ? (
+                      <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
+                        Ver en inventario
+                      </button>
+                    ) : (
+                      <button className="lp-btn lp-btn-ghost" onClick={openLogin}>
+                        Iniciar sesión
+                      </button>
+                    )}
                   </div>
                 </article>
               ))}
@@ -286,29 +335,17 @@ export default function Landing() {
         </section>
       </main>
 
-      {/* LOGIN MODAL (UI) */}
+      {/* LOGIN MODAL */}
       <div className={`lp-modal ${loginOpen ? "active" : ""}`} onMouseDown={closeLogin}>
         <div className="lp-modal-content" onMouseDown={(e) => e.stopPropagation()}>
           <h2>Iniciar sesión</h2>
+          <p style={{ marginTop: 0, opacity: 0.85, fontSize: 13 }}>
+            Para publicar o administrar autos necesitas iniciar sesión.
+          </p>
 
-          {authErr && <div className="lp-alert">{authErr}</div>}
-
-          <form onSubmit={fakeLogin}>
-            <input
-              type="email"
-              placeholder="Correo electrónico"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              type="password"
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-
-            <button type="submit">Entrar</button>
-          </form>
+          <button type="button" onClick={goToLogin}>
+            Ir a Login
+          </button>
 
           <div className="lp-modal-foot">
             <button className="lp-btn lp-btn-ghost" onClick={closeLogin} type="button">
@@ -320,3 +357,4 @@ export default function Landing() {
     </div>
   );
 }
+

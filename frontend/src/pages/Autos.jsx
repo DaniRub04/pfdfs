@@ -9,6 +9,7 @@ const emptyForm = {
   precio: "",
   estado: "disponible",
   descripcion: "",
+  foto_url: "", // ✅ NUEVO
 };
 
 export default function Autos() {
@@ -39,10 +40,7 @@ export default function Autos() {
     setErr("");
     setLoading(true);
     try {
-      // ✅ correcto: api.autos.list()
       const data = await api.autos.list();
-
-      // soporta [] o {items:[]}
       const list = Array.isArray(data) ? data : data.items || [];
       setItems(list);
     } catch (e) {
@@ -73,6 +71,7 @@ export default function Autos() {
       precio: item.precio ?? "",
       estado: item.estado || "disponible",
       descripcion: item.descripcion || "",
+      foto_url: item.foto_url || "", // ✅ NUEVO
     });
     setOpen(true);
   }
@@ -95,6 +94,7 @@ export default function Autos() {
       precio: f.precio === "" ? null : Number(f.precio),
       estado: f.estado,
       descripcion: f.descripcion.trim(),
+      foto_url: f.foto_url?.trim() || null, // ✅ NUEVO
     };
   }
 
@@ -111,10 +111,8 @@ export default function Autos() {
       const payload = normalizePayload(form);
 
       if (mode === "create") {
-        // ✅ correcto: api.autos.create(payload)
         await api.autos.create(payload);
       } else {
-        // ✅ correcto: api.autos.update(id, payload)
         await api.autos.update(currentId, payload);
       }
 
@@ -129,7 +127,6 @@ export default function Autos() {
     if (!confirm("¿Seguro que quieres eliminar este auto?")) return;
     setErr("");
     try {
-      // ✅ correcto: api.autos.remove(id)
       await api.autos.remove(id);
       await refresh();
     } catch (e) {
@@ -185,6 +182,31 @@ export default function Autos() {
         <section style={styles.grid}>
           {filtered.map((x) => (
             <article key={x.id} style={styles.card}>
+              {/* ✅ IMAGEN / PLACEHOLDER */}
+              {x.foto_url ? (
+                <img
+                  style={styles.cardImg}
+                  src={x.foto_url}
+                  alt={`${x.marca} ${x.modelo}`}
+                  loading="lazy"
+                  onError={(e) => {
+                    // si la URL falla, mostramos placeholder
+                    e.currentTarget.style.display = "none";
+                    const ph = e.currentTarget.nextSibling;
+                    if (ph) ph.style.display = "grid";
+                  }}
+                />
+              ) : null}
+
+              <div
+                style={{
+                  ...styles.cardImgPlaceholder,
+                  display: x.foto_url ? "none" : "grid",
+                }}
+              >
+                Sin foto
+              </div>
+
               <div style={styles.cardHead}>
                 <div>
                   <p style={styles.cardTitle}>
@@ -315,6 +337,21 @@ export default function Autos() {
                 </div>
               </div>
 
+              {/* ✅ NUEVO: FOTO URL */}
+              <div style={styles.field}>
+                <label style={styles.label}>Foto (URL)</label>
+                <input
+                  name="foto_url"
+                  value={form.foto_url}
+                  onChange={onChange}
+                  style={styles.input}
+                  placeholder="https://..."
+                />
+                <div style={styles.hint}>
+                  Pega una URL pública (ej. de Supabase Storage/Cloudinary).
+                </div>
+              </div>
+
               <div style={styles.field}>
                 <label style={styles.label}>Descripción</label>
                 <textarea
@@ -407,6 +444,28 @@ const styles = {
     flexDirection: "column",
     gap: 12,
   },
+
+  // ✅ NUEVO: imagen card
+  cardImg: {
+    width: "100%",
+    height: 180,
+    objectFit: "cover",
+    borderRadius: 12,
+    border: "1px solid #e5e7eb",
+    background: "#f9fafb",
+    display: "block",
+  },
+  cardImgPlaceholder: {
+    width: "100%",
+    height: 180,
+    borderRadius: 12,
+    border: "1px dashed #e5e7eb",
+    background: "#fafafa",
+    color: "#6b7280",
+    placeItems: "center",
+    fontWeight: 800,
+  },
+
   cardHead: {
     display: "flex",
     justifyContent: "space-between",
@@ -515,6 +574,11 @@ const styles = {
     borderRadius: 12,
     border: "1px solid #e5e7eb",
     outline: "none",
+  },
+  hint: {
+    fontSize: 12,
+    opacity: 0.7,
+    marginTop: 2,
   },
   formFooter: {
     display: "flex",
