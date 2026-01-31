@@ -420,13 +420,21 @@ const styles = {
     alignItems: "center",
     marginBottom: 16,
   },
-  search: {
-    flex: 1,
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    outline: "none",
-  },
+ search: {
+  flex: 1,
+  padding: "12px 14px",
+  borderRadius: 12,
+  border: "1px solid #e5e7eb",
+  outline: "none",
+
+  // ✅ evita “lupa fantasma”
+  backgroundImage: "none",
+  background: "#fff",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  appearance: "none",
+},
+
 
   grid: {
     display: "grid",
