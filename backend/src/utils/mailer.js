@@ -1,43 +1,47 @@
 import nodemailer from "nodemailer";
-import { env } from "../config/env.js";
+import { env, isEmailEnabled } from "../config/env.js";
 
-// Transporter SMTP (Outlook)
-export const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST,          // smtp.office365.com
-  port: Number(env.SMTP_PORT),  // 587
-  secure: false,                // STARTTLS
-  auth: {
-    user: env.SMTP_USER,        // tu correo Outlook
-    pass: env.SMTP_PASS,        // tu contraseña Outlook
-  },
-});
+export function makeTransport() {
+  if (!isEmailEnabled()) return null;
 
-// Función para enviar correo de verificación
-export async function sendVerifyEmail({ to, name, verifyUrl }) {
-  const subject = "Verifica tu cuenta";
+  return nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: false, // 587 STARTTLS
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  });
+}
+
+export async function sendVerifyEmail({ to, nombre, token }) {
+  const transporter = makeTransport();
+  if (!transporter) return false;
+
+  const verifyUrl = `${env.APP_URL.replace(/\/+$/, "")}/verify?token=${encodeURIComponent(token)}`;
 
   const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.5">
-      <h2>Hola${name ? `, ${name}` : ""} 👋</h2>
-      <p>Para activar tu cuenta, confirma tu correo:</p>
-      <p>
-        <a href="${verifyUrl}"
-           style="display:inline-block;padding:12px 16px;border-radius:10px;
-                  background:#111827;color:#fff;text-decoration:none;
-                  font-weight:700">
-          Verificar cuenta
-        </a>
-      </p>
-      <p style="color:#6b7280;font-size:12px">
-        Si no solicitaste este registro, ignora este correo.
-      </p>
-    </div>
-  `;
+  <div style="font-family:Arial,sans-serif;line-height:1.5">
+    <h2>Verifica tu cuenta</h2>
+    <p>Hola ${nombre || "usuario"},</p>
+    <p>Da clic en el siguiente botón para activar tu cuenta:</p>
+    <p>
+      <a href="${verifyUrl}"
+         style="display:inline-block;padding:12px 16px;background:#111;color:#fff;
+                border-radius:10px;text-decoration:none;font-weight:700">
+        Verificar cuenta
+      </a>
+    </p>
+    <p style="color:#666;font-size:12px">Si no solicitaste esto, ignora este correo.</p>
+  </div>`;
 
   await transporter.sendMail({
-    from: `"Concesionaria Autos" <${env.SMTP_USER}>`,
+    from: `"AUTRUST" <${env.SMTP_USER}>`,
     to,
-    subject,
+    subject: "Verifica tu cuenta - AUTRUST",
     html,
   });
+
+  return true;
 }
