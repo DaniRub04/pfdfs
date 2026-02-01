@@ -48,7 +48,9 @@ const corsMiddleware = cors({
 });
 
 app.use(corsMiddleware);
-app.options("*", corsMiddleware);
+
+// ✅ FIX: en algunas versiones, "*" rompe path-to-regexp
+app.options(/.*/, corsMiddleware);
 
 // ✅ Si alguien no permitido pega, responde claro (evita “misterios”)
 app.use((req, res, next) => {
