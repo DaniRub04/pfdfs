@@ -8,6 +8,10 @@ import { sendVerifyEmail } from "../utils/mailer.js";
 
 const router = Router();
 
+// ✅ Bandera para activar/desactivar verificación de correo (sin borrar lógica)
+const REQUIRE_EMAIL_VERIFICATION =
+    String(process.env.REQUIRE_EMAIL_VERIFICATION ?? "false").toLowerCase() === "true";
+
 // POST /auth/register
 router.post("/register", async (req, res, next) => {
   try {
@@ -28,14 +32,26 @@ router.post("/register", async (req, res, next) => {
     const verify_token = crypto.randomBytes(32).toString("hex");
     const verify_expires = new Date(Date.now() + 60 * 60 * 1000);
 
+    // ✅ Si NO se requiere verificación, lo marcamos verified=true desde el inicio
+    const verifiedOnCreate = REQUIRE_EMAIL_VERIFICATION ? false : true;
+
     const { rows } = await pool.query(
         `INSERT INTO users (nombre, email, password_hash, verified, verify_token, verify_expires)
-       VALUES ($1,$2,$3,false,$4,$5)
+       VALUES ($1,$2,$3,$4,$5,$6)
        RETURNING id, nombre, email, creado_en, verified`,
-        [nombre, email, password_hash, verify_token, verify_expires]
+        [nombre, email, password_hash, verifiedOnCreate, verify_token, verify_expires]
     );
 
-    // ✅ si estás en producción y quieres que SEA OBLIGATORIO el correo:
+    // ✅ Si NO se requiere verificación, ya no intentamos mandar email ni bloquear por SMTP
+    if (!REQUIRE_EMAIL_VERIFICATION) {
+      return res.status(201).json({
+        ok: true,
+        user: rows[0],
+        message: "Cuenta creada correctamente.",
+      });
+    }
+
+    // ✅ Si estás en producción y quieres que SEA OBLIGATORIO el correo:
     if (env.NODE_ENV === "production" && !isEmailEnabled()) {
       return res.status(500).json({
         ok: false,
@@ -43,7 +59,7 @@ router.post("/register", async (req, res, next) => {
       });
     }
 
-    // Intentar enviar correo (en prod debería estar activo)
+    // Intentar enviar correo
     let sent = false;
     try {
       sent = await sendVerifyEmail({ to: email, nombre, token: verify_token });
@@ -113,16 +129,16 @@ router.post("/login", async (req, res, next) => {
     const user = rows[0];
     if (!user) return res.status(401).json({ ok: false, message: "Credenciales inválidas" });
 
-    // ✅ BLOQUEO si no verificó
-    if (!user.verified) {
+    const okPass = await bcrypt.compare(password, user.password_hash);
+    if (!okPass) return res.status(401).json({ ok: false, message: "Credenciales inválidas" });
+
+    // ✅ BLOQUEO SOLO si la verificación está activada
+    if (REQUIRE_EMAIL_VERIFICATION && !user.verified) {
       return res.status(403).json({
         ok: false,
         message: "Tu cuenta no está verificada. Revisa tu correo.",
       });
     }
-
-    const okPass = await bcrypt.compare(password, user.password_hash);
-    if (!okPass) return res.status(401).json({ ok: false, message: "Credenciales inválidas" });
 
     const token = jwt.sign(
         { id: user.id, email: user.email, nombre: user.nombre },
@@ -133,7 +149,7 @@ router.post("/login", async (req, res, next) => {
     res.json({
       ok: true,
       token,
-      user: { id: user.id, nombre: user.nombre, email: user.email },
+      user: { id: user.id, nombre: user.nombre, email: user.email, verified: user.verified },
     });
   } catch (e) {
     next(e);

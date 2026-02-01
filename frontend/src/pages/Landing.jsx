@@ -9,6 +9,9 @@ const DEMO_MODELS = [
   { id: "m3", img: "/landing/img/carro3.avif", price: "1,100,000 MXN", name: "Modelo destacado 3" },
 ];
 
+// ✅ BANDERAS PARA APAGAR MENSAJES (sin borrar)
+const SHOW_SECURITY_BULLETS = false; // <- pon true cuando quieras volver a mostrarlos
+
 export default function Landing() {
   const nav = useNavigate();
 
@@ -188,8 +191,21 @@ export default function Landing() {
         {/* HERO */}
         <section className="lp-hero">
           <div className="lp-hero-content">
-            <h1>Autos en streaming: rápido, claro, confiable.</h1>
+            <h1>Autos en venta: rápido, claro, confiable.</h1>
             <p>Explora autos disponibles. Publica y administra tu inventario con una experiencia moderna.</p>
+
+            {/* ✅ Si quieres meter bullets en landing, aquí quedaría */}
+            {SHOW_SECURITY_BULLETS && (
+              <ul className="lp-hero-bullets">
+                {/* ❌ Quitado: Panel seguro con autenticación JWT */}
+                {/* <li>Panel seguro con autenticación JWT.</li> */}
+
+                <li>Control de estados: disponible, apartado, vendido.</li>
+
+                {/* ❌ Quitado: verificación de correo */}
+                {/* <li>Acceso solo después de verificar tu correo.</li> */}
+              </ul>
+            )}
 
             <div className="lp-hero-cta">
               <button className="lp-btn lp-btn-primary" onClick={() => scrollToSection("market")}>
@@ -213,7 +229,7 @@ export default function Landing() {
         <section className="lp-section" id="models">
           <div className="lp-section-head">
             <h2>Modelos destacados</h2>
-            <p>Ejemplos visuales (demo). Tus autos reales aparecen abajo.</p>
+            <p>Autos en venta</p>
           </div>
 
           <div className="lp-model-grid">
@@ -273,7 +289,6 @@ export default function Landing() {
             <div className="lp-cards">
               {filteredAutos.map((a) => (
                 <article className="lp-card" key={a.id}>
-                  {/* ✅ Placeholder pro (sin fotos todavía) */}
                   <div className="lp-card-img lp-card-img--placeholder">
                     <div className="lp-card-img__brand">
                       AU<span>TRUST</span>
@@ -295,9 +310,7 @@ export default function Landing() {
                         <span>{a.anio ?? "—"}</span>
                         <span className="lp-dot" />
                         <span>
-                          {a.precio == null
-                            ? "—"
-                            : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                          {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
                         </span>
                       </div>
                     </div>
@@ -357,4 +370,3 @@ export default function Landing() {
     </div>
   );
 }
-

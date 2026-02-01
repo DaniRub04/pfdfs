@@ -3,6 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import "../styles/auth.css";
 
+// ✅ BANDERAS (para apagar textos sin borrar)
+const SHOW_JWT_BULLET = false;
+const SHOW_VERIFY_BULLET = false;
+const SHOW_VERIFY_FOOTER = false;
+
 export default function Login() {
   const nav = useNavigate();
 
@@ -49,18 +54,26 @@ export default function Login() {
           </div>
 
           <div className="feature-list">
-            <div className="feature">
-              <span className="feature-dot" />
-              <span>Panel seguro con autenticación JWT.</span>
-            </div>
+            {/* ❌ Quitado por bandera: Panel seguro con autenticación JWT */}
+            {SHOW_JWT_BULLET && (
+              <div className="feature">
+                <span className="feature-dot" />
+                <span>Panel seguro con autenticación JWT.</span>
+              </div>
+            )}
+
             <div className="feature">
               <span className="feature-dot" />
               <span>Control de estados: disponible, apartado, vendido.</span>
             </div>
-            <div className="feature">
-              <span className="feature-dot" />
-              <span>Acceso solo después de verificar tu correo.</span>
-            </div>
+
+            {/* ❌ Quitado por bandera: Acceso solo después de verificar tu correo */}
+            {SHOW_VERIFY_BULLET && (
+              <div className="feature">
+                <span className="feature-dot" />
+                <span>Acceso solo después de verificar tu correo.</span>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -117,10 +130,13 @@ export default function Login() {
               {loading ? "Entrando..." : "Entrar"}
             </button>
 
-            <p className="footer-note">
-              Si tu cuenta no está verificada, revisa tu correo y haz clic en el
-              enlace de activación.
-            </p>
+            {/* ❌ Quitado por bandera: Nota de cuenta no verificada */}
+            {SHOW_VERIFY_FOOTER && (
+              <p className="footer-note">
+                Si tu cuenta no está verificada, revisa tu correo y haz clic en el
+                enlace de activación.
+              </p>
+            )}
           </form>
         </main>
       </div>

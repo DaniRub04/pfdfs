@@ -1,45 +1,87 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { env, isEmailEnabled } from "../config/env.js";
 
-export function makeTransport() {
-  if (!isEmailEnabled()) return null;
-
-  return nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: false, // 587 STARTTLS
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
-}
+const resend = new Resend(env.RESEND_API_KEY);
 
 export async function sendVerifyEmail({ to, nombre, token }) {
-  const transporter = makeTransport();
-  if (!transporter) return false;
+  if (!isEmailEnabled()) return false;
 
   const verifyUrl = `${env.APP_URL.replace(/\/+$/, "")}/verify?token=${encodeURIComponent(token)}`;
 
   const html = `
-  <div style="font-family:Arial,sans-serif;line-height:1.5">
-    <h2>Verifica tu cuenta</h2>
-    <p>Hola ${nombre || "usuario"},</p>
-    <p>Da clic en el siguiente botón para activar tu cuenta:</p>
-    <p>
-      <a href="${verifyUrl}"
-         style="display:inline-block;padding:12px 16px;background:#111;color:#fff;
-                border-radius:10px;text-decoration:none;font-weight:700">
-        Verificar cuenta
-      </a>
-    </p>
-    <p style="color:#666;font-size:12px">Si no solicitaste esto, ignora este correo.</p>
-  </div>`;
+  <div style="
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background-color: #f9fafb;
+    padding: 32px;
+    color: #111827;
+  ">
+    <div style="
+      max-width: 520px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 28px;
+      border: 1px solid #e5e7eb;
+    ">
+      <h2 style="margin-top:0;">
+        Bienvenido a <strong>AUTRUST – Autos Usados</strong>
+      </h2>
 
-  await transporter.sendMail({
-    from: `"AUTRUST" <${env.SMTP_USER}>`,
+      <p style="font-size:15px; line-height:1.6;">
+        Hola <strong>${nombre || "usuario"}</strong>,
+      </p>
+
+      <p style="font-size:15px; line-height:1.6;">
+        Te has registrado exitosamente en <strong>AUTRUST – Autos Usados</strong>.
+        Para completar tu registro y activar tu cuenta, es necesario verificar
+        tu dirección de correo electrónico.
+      </p>
+
+      <p style="font-size:15px; line-height:1.6;">
+        Por favor, haz clic en el siguiente enlace para verificar tu cuenta:
+      </p>
+
+      <p style="margin: 18px 0;">
+        <a href="${verifyUrl}"
+           style="
+             color: #2563eb;
+             font-weight: 600;
+             text-decoration: none;
+           ">
+          Verificar mi cuenta
+        </a>
+      </p>
+
+      <p style="font-size:14px; color:#374151;">
+        Si el enlace no funciona, copia y pega la siguiente dirección en tu navegador:
+      </p>
+
+      <p style="
+        font-size:13px;
+        color:#2563eb;
+        word-break: break-all;
+      ">
+        ${verifyUrl}
+      </p>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
+
+      <p style="font-size:13px;color:#6b7280;line-height:1.5;">
+        Si no realizaste este registro, puedes ignorar este mensaje.
+        Tu cuenta no será activada sin la verificación.
+      </p>
+
+      <p style="font-size:13px;color:#6b7280;margin-top:24px;">
+        © ${new Date().getFullYear()} AUTRUST – Autos Usados
+      </p>
+    </div>
+  </div>
+  `;
+
+  await resend.emails.send({
+    from: env.MAIL_FROM, // ej: "AUTRUST – Autos Usados <onboarding@resend.dev>"
     to,
-    subject: "Verifica tu cuenta - AUTRUST",
+    subject: "Verifica tu cuenta en AUTRUST – Autos Usados",
     html,
   });
 
