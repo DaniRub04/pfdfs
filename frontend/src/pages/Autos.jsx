@@ -71,7 +71,8 @@ export default function Autos() {
       precio: item.precio ?? "",
       estado: item.estado || "disponible",
       descripcion: item.descripcion || "",
-      foto_url: item.foto_url || "", // ✅ NUEVO
+      // ✅ CORRECCIÓN: si no hay foto_url pero sí imagenes[0], lo ponemos en el input
+      foto_url: item.foto_url || item.imagenes?.[0] || "",
     });
     setOpen(true);
   }
@@ -180,70 +181,64 @@ export default function Autos() {
         </div>
       ) : (
         <section style={styles.grid}>
-          {filtered.map((x) => (
-            <article key={x.id} style={styles.card}>
-              {/* ✅ IMAGEN / PLACEHOLDER */}
-              {x.foto_url ? (
-                <img
-                  style={styles.cardImg}
-                  src={x.foto_url}
-                  alt={`${x.marca} ${x.modelo}`}
-                  loading="lazy"
-                  onError={(e) => {
-                    // si la URL falla, mostramos placeholder
-                    e.currentTarget.style.display = "none";
-                    const ph = e.currentTarget.nextSibling;
-                    if (ph) ph.style.display = "grid";
-                  }}
-                />
-              ) : null}
+          {filtered.map((x) => {
+            // ✅ CORRECCIÓN PRINCIPAL (como pediste)
+            const imgSrc = x?.foto_url || x?.imagenes?.[0] || "";
 
-              <div
-                style={{
-                  ...styles.cardImgPlaceholder,
-                  display: x.foto_url ? "none" : "grid",
-                }}
-              >
-                Sin foto
-              </div>
-
-              <div style={styles.cardHead}>
-                <div>
-                  <p style={styles.cardTitle}>
-                    {x.marca} {x.modelo}
-                  </p>
-                  <p style={styles.cardMeta}>
-                    {x.anio ?? "—"} ·{" "}
-                    {x.precio != null
-                      ? `$${Number(x.precio).toLocaleString()}`
-                      : "—"}
-                  </p>
+            return (
+              <article key={x.id} style={styles.card}>
+                {/* ✅ IMAGEN / PLACEHOLDER (usando imgSrc) */}
+                <div style={styles.autoThumb}>
+                  {imgSrc ? (
+                    <img
+                      style={styles.autoThumbImg}
+                      src={imgSrc}
+                      alt={`${x.marca} ${x.modelo}`}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div style={styles.autoThumbEmpty}>Sin imagen</div>
+                  )}
                 </div>
 
-                <span style={badgeStyle(x.estado)}>{x.estado}</span>
-              </div>
+                <div style={styles.cardHead}>
+                  <div>
+                    <p style={styles.cardTitle}>
+                      {x.marca} {x.modelo}
+                    </p>
+                    <p style={styles.cardMeta}>
+                      {x.anio ?? "—"} ·{" "}
+                      {x.precio != null
+                        ? `$${Number(x.precio).toLocaleString()}`
+                        : "—"}
+                    </p>
+                  </div>
 
-              {x.descripcion ? (
-                <p style={styles.cardDesc}>{x.descripcion}</p>
-              ) : (
-                <p style={{ ...styles.cardDesc, opacity: 0.6 }}>
-                  Sin descripción.
-                </p>
-              )}
+                  <span style={badgeStyle(x.estado)}>{x.estado}</span>
+                </div>
 
-              <div style={styles.cardFooter}>
-                <button style={styles.smallBtn} onClick={() => openEdit(x)}>
-                  Editar
-                </button>
-                <button
-                  style={{ ...styles.smallBtn, ...styles.dangerBtn }}
-                  onClick={() => onDelete(x.id)}
-                >
-                  Eliminar
-                </button>
-              </div>
-            </article>
-          ))}
+                {x.descripcion ? (
+                  <p style={styles.cardDesc}>{x.descripcion}</p>
+                ) : (
+                  <p style={{ ...styles.cardDesc, opacity: 0.6 }}>
+                    Sin descripción.
+                  </p>
+                )}
+
+                <div style={styles.cardFooter}>
+                  <button style={styles.smallBtn} onClick={() => openEdit(x)}>
+                    Editar
+                  </button>
+                  <button
+                    style={{ ...styles.smallBtn, ...styles.dangerBtn }}
+                    onClick={() => onDelete(x.id)}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </section>
       )}
 
@@ -337,7 +332,7 @@ export default function Autos() {
                 </div>
               </div>
 
-              {/* ✅ NUEVO: FOTO URL */}
+              {/* FOTO URL */}
               <div style={styles.field}>
                 <label style={styles.label}>Foto (URL)</label>
                 <input
@@ -420,21 +415,20 @@ const styles = {
     alignItems: "center",
     marginBottom: 16,
   },
- search: {
-  flex: 1,
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid #e5e7eb",
-  outline: "none",
+  search: {
+    flex: 1,
+    padding: "12px 14px",
+    borderRadius: 12,
+    border: "1px solid #e5e7eb",
+    outline: "none",
 
-  // ✅ evita “lupa fantasma”
-  backgroundImage: "none",
-  background: "#fff",
-  WebkitAppearance: "none",
-  MozAppearance: "none",
-  appearance: "none",
-},
-
+    // ✅ evita “lupa fantasma”
+    backgroundImage: "none",
+    background: "#fff",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    appearance: "none",
+  },
 
   grid: {
     display: "grid",
@@ -453,24 +447,29 @@ const styles = {
     gap: 12,
   },
 
-  // ✅ NUEVO: imagen card
-  cardImg: {
+  // ✅ NUEVO (para tu corrección estilo “auto-thumb”)
+  autoThumb: {
     width: "100%",
     height: 180,
-    objectFit: "cover",
     borderRadius: 12,
     border: "1px solid #e5e7eb",
+    overflow: "hidden",
     background: "#f9fafb",
+  },
+  autoThumbImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
     display: "block",
   },
-  cardImgPlaceholder: {
+  autoThumbEmpty: {
     width: "100%",
-    height: 180,
-    borderRadius: 12,
+    height: "100%",
+    display: "grid",
+    placeItems: "center",
     border: "1px dashed #e5e7eb",
     background: "#fafafa",
     color: "#6b7280",
-    placeItems: "center",
     fontWeight: 800,
   },
 

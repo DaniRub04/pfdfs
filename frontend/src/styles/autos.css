@@ -276,3 +276,35 @@
   gap: 10px;
   margin-top: 14px;
 }
+/* =========================
+   THUMB (imagen del auto)
+   ========================= */
+.auto-thumb {
+  width: 100%;
+  height: 180px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  margin-bottom: 12px;
+}
+
+.auto-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Placeholder cuando no hay imagen */
+.auto-thumb--empty {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: rgba(255,255,255,0.72);
+  background: rgba(0,0,0,0.18);
+  border: 1px dashed rgba(255,255,255,0.18);
+  border-radius: 14px;
+}
