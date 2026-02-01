@@ -197,13 +197,7 @@ export default function Landing() {
             {/* ✅ Si quieres meter bullets en landing, aquí quedaría */}
             {SHOW_SECURITY_BULLETS && (
               <ul className="lp-hero-bullets">
-                {/* ❌ Quitado: Panel seguro con autenticación JWT */}
-                {/* <li>Panel seguro con autenticación JWT.</li> */}
-
                 <li>Control de estados: disponible, apartado, vendido.</li>
-
-                {/* ❌ Quitado: verificación de correo */}
-                {/* <li>Acceso solo después de verificar tu correo.</li> */}
               </ul>
             )}
 
@@ -287,54 +281,71 @@ export default function Landing() {
             </div>
           ) : (
             <div className="lp-cards">
-              {filteredAutos.map((a) => (
-                <article className="lp-card" key={a.id}>
-                  <div className="lp-card-img lp-card-img--placeholder">
-                    <div className="lp-card-img__brand">
-                      AU<span>TRUST</span>
-                    </div>
-                    <div className="lp-card-img__meta">
-                      <span>{a.marca || "Auto"}</span>
-                      <span className="lp-dot" />
-                      <span>{a.modelo || "—"}</span>
-                    </div>
-                  </div>
+              {filteredAutos.map((a) => {
+                // ✅ IMAGEN REAL (fallback)
+                const imgSrc = a?.foto_url || a?.imagenes?.[0] || "";
 
-                  <div className="lp-card-head">
-                    <div>
-                      <div className="lp-card-title">
-                        {a.marca} <span>{a.modelo}</span>
+                return (
+                  <article className="lp-card" key={a.id}>
+                    {/* ✅ si hay img, se pinta <img>; si no, queda placeholder */}
+                    <div className={`lp-card-img ${!imgSrc ? "lp-card-img--placeholder" : ""}`}>
+                      {imgSrc ? (
+                        <img
+                          src={imgSrc}
+                          alt={`${a.marca || "Auto"} ${a.modelo || ""}`}
+                          className="lp-card-img__img"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <>
+                          <div className="lp-card-img__brand">
+                            AU<span>TRUST</span>
+                          </div>
+                          <div className="lp-card-img__meta">
+                            <span>{a.marca || "Auto"}</span>
+                            <span className="lp-dot" />
+                            <span>{a.modelo || "—"}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="lp-card-head">
+                      <div>
+                        <div className="lp-card-title">
+                          {a.marca} <span>{a.modelo}</span>
+                        </div>
+
+                        <div className="lp-card-meta">
+                          <span>{a.anio ?? "—"}</span>
+                          <span className="lp-dot" />
+                          <span>
+                            {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="lp-card-meta">
-                        <span>{a.anio ?? "—"}</span>
-                        <span className="lp-dot" />
-                        <span>
-                          {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
-                        </span>
-                      </div>
+                      <span className={`lp-badge lp-badge-${a.estado || "disponible"}`}>
+                        {a.estado || "disponible"}
+                      </span>
                     </div>
 
-                    <span className={`lp-badge lp-badge-${a.estado || "disponible"}`}>
-                      {a.estado || "disponible"}
-                    </span>
-                  </div>
+                    <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
 
-                  <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
-
-                  <div className="lp-card-foot">
-                    {me ? (
-                      <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
-                        Ver en inventario
-                      </button>
-                    ) : (
-                      <button className="lp-btn lp-btn-ghost" onClick={openLogin}>
-                        Iniciar sesión
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
+                    <div className="lp-card-foot">
+                      {me ? (
+                        <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
+                          Ver en inventario
+                        </button>
+                      ) : (
+                        <button className="lp-btn lp-btn-ghost" onClick={openLogin}>
+                          Iniciar sesión
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>

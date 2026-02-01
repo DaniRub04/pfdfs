@@ -534,3 +534,15 @@ body{
   .lp-user-mail{ display:none; }
   .lp-card-img{ height: 220px; }
 }
+/* imagen real en cards del landing */
+.lp-card-img {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-card-img__img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
