@@ -32,7 +32,7 @@ export default function Login() {
       await api.login({ email: email.trim(), password });
       nav("/autos"); // 🔒 ruta protegida
     } catch (err) {
-      setMsg(err.message || "Error al iniciar sesión");
+      setMsg(err?.message || "Error al iniciar sesión");
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,15 @@ export default function Login() {
             </div>
           </div>
 
-       
+          {/* ✅ Contenedor que faltaba (para que no se rompan los cierres) */}
+          <div className="features">
+            {/* ❌ Si luego quieres usar esta bandera, aquí tienes el bloque listo */}
+            {SHOW_JWT_BULLET && (
+              <div className="feature">
+                <span className="feature-dot" />
+                <span>Autenticación segura con token (JWT).</span>
+              </div>
+            )}
 
             <div className="feature">
               <span className="feature-dot" />
@@ -126,8 +134,8 @@ export default function Login() {
             {/* ❌ Quitado por bandera: Nota de cuenta no verificada */}
             {SHOW_VERIFY_FOOTER && (
               <p className="footer-note">
-                Si tu cuenta no está verificada, revisa tu correo y haz clic en el
-                enlace de activación.
+                Si tu cuenta no está verificada, revisa tu correo y haz clic en
+                el enlace de activación.
               </p>
             )}
           </form>
