@@ -12,7 +12,6 @@
   --text: rgba(255,255,255,.92);
   --muted: rgba(255,255,255,.70);
 
-  /* Brand */
   --green: #1f7a57;
   --green2:#2aa070;
   --danger: #ef4444;
@@ -22,7 +21,6 @@
    BASE
 ------------------------------ */
 .lp * { box-sizing: border-box; }
-
 html, body { height: 100%; }
 
 body{
@@ -83,7 +81,6 @@ body{
 .lp-logo span{ font-weight: 400; color: rgba(255,255,255,0.65); }
 
 .lp-right{ display:flex; align-items:center; gap: 12px; }
-
 .lp-user{ display:flex; align-items:center; gap: 10px; }
 
 .lp-user-mail{
@@ -96,26 +93,29 @@ body{
 }
 
 /* ------------------------------
-   SEARCH ICON
+   SEARCH BUTTON (solo una versión)
 ------------------------------ */
 .lp-search{
-  width: 22px; height: 22px;
-  border: 2px solid rgba(255,255,255,0.85);
-  border-radius: 50%;
-  background: transparent;
-  position: relative;
-  cursor:pointer;
-  opacity: .8;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
 }
-.lp-search::after{
-  content:"";
-  position:absolute;
-  width: 9px; height: 2px;
-  background: rgba(255,255,255,0.85);
-  right: -7px; bottom: -2px;
-  transform: rotate(45deg);
+.lp-search::before{
+  content: "🔍";
+  font-size: 18px;
+  line-height: 1;
+  opacity: .9;
 }
-.lp-search:hover{ opacity: 1; }
+.lp-search:hover{
+  background: rgba(255,255,255,.10);
+}
 
 /* ------------------------------
    SEARCH BAR
@@ -165,7 +165,6 @@ body{
 }
 .lp-sidebar.active{ left: 0; }
 .lp-sidebar h3{ margin: 6px 0 14px; }
-
 .lp-sidebar ul{ list-style:none; padding:0; margin:0; }
 
 .lp-sidebar li{
@@ -187,7 +186,7 @@ body{
 }
 
 /* ------------------------------
-   HERO (más premium)
+   HERO
 ------------------------------ */
 .lp-hero{
   position: relative;
@@ -229,14 +228,13 @@ body{
   gap: 14px;
   margin-bottom: 14px;
 }
-
 .lp-section-head h2{ margin:0; font-size: 22px; }
 .lp-section-head p{ margin:0; opacity:.8; font-size: 13px; }
 
 .lp-market-actions{ display:flex; gap:10px; }
 
 /* ------------------------------
-   BUTTONS (más “empresa”)
+   BUTTONS
 ------------------------------ */
 .lp-btn{
   border-radius: 14px;
@@ -315,13 +313,73 @@ body{
   gap: 14px;
 }
 
+/* ✅ Card sin padding (la imagen queda pegada al borde) */
 .lp-card{
   border-radius: 16px;
-  padding: 14px;
+  padding: 0;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.03);
   box-shadow: 0 12px 30px rgba(0,0,0,.25);
+  overflow: hidden;
 }
+
+/* ✅ Imagen con altura estable */
+.lp-card-img{
+  width: 100%;
+  height: 240px;
+  position: relative;
+  overflow: hidden;
+  display: block;
+}
+
+/* ✅ Placeholder (solo si NO hay foto) */
+.lp-card-img--placeholder{
+  background:
+          radial-gradient(800px 240px at 20% 20%, rgba(42,160,112,.18), transparent 60%),
+          radial-gradient(700px 240px at 80% 30%, rgba(255,255,255,.08), transparent 60%),
+          linear-gradient(180deg, rgba(0,0,0,.35), rgba(255,255,255,.03));
+}
+
+/* ✅ Foto real */
+.lp-card-img__photo{
+  width: 100%;
+  height: 100%;
+  display:block;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* ✅ Overlay para marca + meta (se puede usar tanto en placeholder como en foto) */
+.lp-card-img__overlay{
+  position: absolute;
+  inset: 0;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  padding: 14px;
+  background: linear-gradient(to top, rgba(0,0,0,.60), rgba(0,0,0,0));
+}
+
+.lp-card-img__brand{
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-size: 18px;
+  opacity: .92;
+  user-select: none;
+}
+.lp-card-img__brand span{ font-weight: 400; opacity: .7; }
+
+.lp-card-img__meta{
+  margin-top: 8px;
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  font-size: 12px;
+  opacity: .85;
+}
+
+/* ✅ Body con padding (solo texto) */
+.lp-card-body{ padding: 14px; }
 
 .lp-card-head{
   display:flex;
@@ -385,7 +443,7 @@ body{
 }
 
 /* ------------------------------
-   ALERTS
+   ALERTS / SKELETON / EMPTY
 ------------------------------ */
 .lp-alert{
   margin-top: 12px;
@@ -396,9 +454,6 @@ body{
   font-weight: 800;
 }
 
-/* ------------------------------
-   SKELETONS
------------------------------- */
 .lp-skeleton-grid{
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
@@ -412,9 +467,6 @@ body{
   background: rgba(255,255,255,0.03);
 }
 
-/* ------------------------------
-   EMPTY
------------------------------- */
 .lp-empty{
   margin-top: 12px;
   border: 1px dashed rgba(255,255,255,0.18);
@@ -462,7 +514,6 @@ body{
   padding: 16px;
 }
 .lp-modal-content h2{ margin: 4px 0 12px; }
-
 .lp-modal-content button{
   width:100%;
   padding: 12px 12px;
@@ -473,7 +524,6 @@ body{
   font-weight: 900;
   cursor:pointer;
 }
-
 .lp-modal-foot{ margin-top: 10px; }
 
 /* ------------------------------
@@ -482,85 +532,5 @@ body{
 @media (max-width: 900px){
   .lp-model-grid{ grid-template-columns: 1fr; }
   .lp-user-mail{ display:none; }
-}
-
-/* =========================
-   CARD POSTER (placeholder pro)
-   Usado en Landing.jsx:
-   .lp-card-img .lp-card-img--placeholder .lp-card-img__brand .lp-card-img__meta
-========================= */
-.lp-card-img{
-  width: 100%;
-  height: 170px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.03);
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  margin-bottom: 12px;
-}
-
-.lp-card-img--placeholder{
-  position: relative;
-  background:
-          radial-gradient(800px 240px at 20% 20%, rgba(42,160,112,.18), transparent 60%),
-          radial-gradient(700px 240px at 80% 30%, rgba(255,255,255,.08), transparent 60%),
-          linear-gradient(180deg, rgba(0,0,0,.35), rgba(255,255,255,.03));
-}
-
-.lp-card-img__brand{
-  font-weight: 900;
-  letter-spacing: 2px;
-  font-size: 18px;
-  opacity: .92;
-  user-select: none;
-}
-
-.lp-card-img__brand span{
-  font-weight: 400;
-  opacity: .7;
-}
-
-.lp-card-img__meta{
-  position: absolute;
-  bottom: 10px;
-  left: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  opacity: .85;
-}
-
-/* (Opcional) hover suave tipo marketplace */
-.lp-card:hover .lp-card-img--placeholder{
-  filter: brightness(1.05);
-  transition: filter .2s ease;
-}
-/* Botón lupa (header) */
-.lp-search{
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.06);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  position: relative;
-}
-
-.lp-search::before{
-  content: "🔍";
-  font-size: 18px;
-  line-height: 1;
-  opacity: .9;
-}
-
-.lp-search:hover{
-  background: rgba(255,255,255,.10);
+  .lp-card-img{ height: 220px; }
 }

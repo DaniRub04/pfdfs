@@ -35,7 +35,7 @@ export default function Register() {
     try {
       setLoading(true);
       await api.register({ nombre, email, password });
-      setOk("✅ Registro exitoso. Revisa tu correo para verificar tu cuenta.");
+      setOk("✅ Registro exitoso. ");
       setForm({ nombre: "", email: "", password: "" });
     } catch (e2) {
       setErr(e2.message);
@@ -53,17 +53,14 @@ export default function Register() {
             <div>
               <p className="brand-title">AutoTrust</p>
               <p className="brand-sub">
-                Inventario y control de autos con flujo de verificación de correo.
+                Inventario y control de autos 
               </p>
             </div>
           </div>
 
           <div className="feature-list">
            
-            <div className="feature">
-              <span className="feature-dot" />
-              <span>Verificación por correo antes de iniciar sesión.</span>
-            </div>
+           
             <div className="feature">
               <span className="feature-dot" />
               <span>Acceso protegido a Autos después de login.</span>
@@ -73,7 +70,7 @@ export default function Register() {
 
         <main className="auth-card">
           <h1>Crear cuenta</h1>
-          <p>Usa tu correo real. Te enviaremos un link para activar la cuenta.</p>
+        
 
           {err && <div className="alert">❌ {err}</div>}
           {ok && <div className="alert success">{ok}</div>}
@@ -127,9 +124,7 @@ export default function Register() {
               {loading ? "Creando..." : "Crear cuenta"}
             </button>
 
-            <p className="footer-note">
-              Al registrarte aceptas el uso de correo para verificación (solo para activar tu cuenta).
-            </p>
+          
           </form>
         </main>
       </div>

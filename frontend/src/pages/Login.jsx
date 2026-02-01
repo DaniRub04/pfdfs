@@ -53,14 +53,7 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="feature-list">
-            {/* ❌ Quitado por bandera: Panel seguro con autenticación JWT */}
-            {SHOW_JWT_BULLET && (
-              <div className="feature">
-                <span className="feature-dot" />
-                <span>Panel seguro con autenticación JWT.</span>
-              </div>
-            )}
+       
 
             <div className="feature">
               <span className="feature-dot" />
