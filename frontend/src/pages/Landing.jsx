@@ -169,11 +169,11 @@ export default function Landing() {
       <aside className={`lp-sidebar ${sidebarOpen ? "active" : ""}`}>
         <h3>Menú</h3>
         <ul>
-          <li onClick={() => scrollToSection("models")}>Modelos destacados</li>
-          <li onClick={() => scrollToSection("market")}>Autos en venta</li>
+          <li onClick={() => scrollToSection("models")}>Últimos productos</li>
+          <li onClick={() => scrollToSection("market")}>Mis productos</li>
           <li onClick={() => scrollToSection("about")}>Nosotros</li>
 
-          <li onClick={() => nav("/autos")}>Inventario (CRUD)</li>
+          <li onClick={() => nav("/autos")}>Inventario</li>
 
           {!me ? (
             <>
