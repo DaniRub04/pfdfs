@@ -355,7 +355,7 @@ export default function Landing() {
           <h2>Nosotros</h2>
           <p>Calidad, innovación y confianza.</p>
           <p>Whatsapp: 9954635434</p>
-          <p>Instagram: Selecta PLAZA</p>
+          <p>Instagram: @selectaplaza</p>
         </section>
       </main>
 
