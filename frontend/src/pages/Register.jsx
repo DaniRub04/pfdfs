@@ -51,7 +51,7 @@ export default function Register() {
           <div className="brand">
             <div className="brand-badge" />
             <div>
-              <p className="brand-title">AutoTrust</p>
+              <p className="brand-title">Selecta Hub</p>
               <p className="brand-sub">
                 Inventario y control de autos 
               </p>

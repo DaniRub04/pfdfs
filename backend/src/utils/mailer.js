@@ -24,7 +24,7 @@ export async function sendVerifyEmail({ to, nombre, token }) {
       border: 1px solid #e5e7eb;
     ">
       <h2 style="margin-top:0;">
-        Bienvenido a <strong>AUTRUST – Autos Usados</strong>
+        Bienvenido a <strong>SELECTA PLAZA – Autos Usados</strong>
       </h2>
 
       <p style="font-size:15px; line-height:1.6;">
@@ -32,7 +32,7 @@ export async function sendVerifyEmail({ to, nombre, token }) {
       </p>
 
       <p style="font-size:15px; line-height:1.6;">
-        Te has registrado exitosamente en <strong>AUTRUST – Autos Usados</strong>.
+        Te has registrado exitosamente en <strong>SELECTA PLAZA – Autos Usados</strong>.
         Para completar tu registro y activar tu cuenta, es necesario verificar
         tu dirección de correo electrónico.
       </p>
@@ -72,16 +72,16 @@ export async function sendVerifyEmail({ to, nombre, token }) {
       </p>
 
       <p style="font-size:13px;color:#6b7280;margin-top:24px;">
-        © ${new Date().getFullYear()} AUTRUST – Autos Usados
+        © ${new Date().getFullYear()} SELECTA PLAZA – Autos Usados
       </p>
     </div>
   </div>
   `;
 
   await resend.emails.send({
-    from: env.MAIL_FROM, // ej: "AUTRUST – Autos Usados <onboarding@resend.dev>"
+    from: env.MAIL_FROM, // ej: "SELECTA PLAZA – Autos Usados <onboarding@resend.dev>"
     to,
-    subject: "Verifica tu cuenta en AUTRUST – Autos Usados",
+    subject: "Verifica tu cuenta en SELECTA PLAZA – Autos Usados",
     html,
   });
 

@@ -122,7 +122,7 @@ export default function Landing() {
           tabIndex={0}
           title="Inicio"
         >
-          AU<span>TRUST</span>
+          SELECTA<span>PLAZA</span>
         </div>
 
         <div className="lp-right">
@@ -299,7 +299,7 @@ export default function Landing() {
                       ) : (
                         <>
                           <div className="lp-card-img__brand">
-                            AU<span>TRUST</span>
+                            SELECTA<span>PLAZA</span>
                           </div>
                           <div className="lp-card-img__meta">
                             <span>{a.marca || "Auto"}</span>
@@ -355,7 +355,7 @@ export default function Landing() {
           <h2>Nosotros</h2>
           <p>Calidad, innovación y confianza.</p>
           <p>Whatsapp: 9954635434</p>
-          <p>Instagram: autrust</p>
+          <p>Instagram: Selecta PLAZA</p>
         </section>
       </main>
 

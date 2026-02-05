@@ -46,7 +46,7 @@ export default function Login() {
           <div className="brand">
             <div className="brand-badge" />
             <div>
-              <p className="brand-title">AutoTrust</p>
+              <p className="brand-title">SELECTA PLAZA</p>
               <p className="brand-sub">
                 Accede a tu panel para administrar el inventario de autos.
               </p>
