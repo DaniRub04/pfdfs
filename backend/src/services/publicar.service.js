@@ -23,11 +23,11 @@ export async function createPublication({ group, data, userId }) {
     throw err;
   }
 
-  // OJO: "group" puede ser palabra reservada; escápala con comillas dobles.
+  // ✅ En tu BD la columna es group_id (no "group")
   const q = `
-    insert into publicaciones ("group", data, user_id)
+    insert into publicaciones (group_id, data, user_id)
     values ($1, $2::jsonb, $3)
-    returning id, "group", data, user_id, created_at
+    returning id, group_id, data, user_id, created_at
   `;
 
   const values = [group, JSON.stringify(data), userId];
