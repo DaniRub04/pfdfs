@@ -13,13 +13,20 @@ export const app = express();
 
 app.use(express.json());
 
+/* =====================================================
+   CONFIGURACIÓN CORS
+===================================================== */
+
 // ✅ Orígenes permitidos desde ENV (separados por coma)
 const rawOrigins = (env.CORS_ORIGIN || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Exactos (sin *)
 const exactOrigins = new Set(rawOrigins.filter((o) => !o.includes("*")));
+
+// Wildcards (ej: https://*.vercel.app)
 const wildcardPatterns = rawOrigins
   .filter((o) => o.includes("*"))
   .map((pattern) => {
@@ -28,31 +35,38 @@ const wildcardPatterns = rawOrigins
     return new RegExp(regexStr);
   });
 
+// Función que valida origin
 function isOriginAllowed(origin) {
-  if (!origin) return true; // Postman/curl o server-to-server
+  if (!origin) return true; // Postman / curl / server-to-server
   if (exactOrigins.has(origin)) return true;
   return wildcardPatterns.some((re) => re.test(origin));
 }
 
-// ✅ CORS (aquí SI validamos el origin, en vez de bloquear “a mano”)
+// Middleware CORS
 const corsMiddleware = cors({
   origin: (origin, cb) => cb(null, isOriginAllowed(origin)),
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: false,
+  credentials: true, // 🔥 importante si usas cookies/sesión
   optionsSuccessStatus: 204,
 });
 
 app.use(corsMiddleware);
-app.use(corsMiddleware);
+app.options("*", corsMiddleware); // 👈 soporte preflight
 
+/* =====================================================
+   RUTAS
+===================================================== */
 
-// Rutas
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
 app.use("/autos", autosRoutes);
 app.use("/publicar", publicarRoutes);
+
+/* =====================================================
+   ERROR HANDLER
+===================================================== */
 
 app.use(errorHandler);
