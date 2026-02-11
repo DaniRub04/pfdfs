@@ -23,6 +23,16 @@ function normalizeGroup(groupId, fallback = "automotriz") {
   return ok ? groupId : fallback;
 }
 
+function getLocalToken() {
+  return (
+    api.getToken?.() ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("auth_token") ||
+    ""
+  );
+}
+
 export default function Landing() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -35,8 +45,9 @@ export default function Landing() {
     [group]
   );
 
-  // auth
+  // ✅ auth (no dependas solo de "me")
   const [me, setMe] = useState(null);
+  const [isAuthed, setIsAuthed] = useState(Boolean(getLocalToken()));
 
   // preview público
   const [items, setItems] = useState([]);
@@ -50,6 +61,9 @@ export default function Landing() {
       setMe(meData);
     } catch {
       setMe(null);
+    } finally {
+      // ✅ si hay token, consideramos sesión aunque /me falle temporalmente
+      setIsAuthed(Boolean(getLocalToken()));
     }
   }
 
@@ -90,6 +104,17 @@ export default function Landing() {
     nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
+  function goPublicar() {
+    // ✅ si no hay token, manda a login
+    if (!getLocalToken()) return nav("/login");
+    nav("/publicar");
+  }
+
+  function goInventario() {
+    if (!getLocalToken()) return nav("/login");
+    nav("/perfil/inventario");
+  }
+
   return (
     <div className="lp">
       <main className="lp-main" id="top">
@@ -107,12 +132,12 @@ export default function Landing() {
                 Explorar {groupLabel}
               </button>
 
-              {me ? (
+              {isAuthed ? (
                 <>
-                  <button className="lp-btn lp-btn-ghost" onClick={() => nav("/publicar")}>
+                  <button className="lp-btn lp-btn-ghost" onClick={goPublicar}>
                     Publicar
                   </button>
-                  <button className="lp-btn lp-btn-ghost" onClick={() => nav("/perfil/inventario")}>
+                  <button className="lp-btn lp-btn-ghost" onClick={goInventario}>
                     Inventario
                   </button>
                 </>
@@ -127,6 +152,11 @@ export default function Landing() {
                 </>
               )}
             </div>
+
+            {/* (opcional) debug visual mínimo */}
+            {/* <div style={{ opacity: 0.7, marginTop: 8, fontSize: 12 }}>
+              authed: {String(isAuthed)} {me ? "• me ok" : "• me null"}
+            </div> */}
           </div>
         </section>
 
@@ -161,10 +191,10 @@ export default function Landing() {
                 Ver catálogo
               </button>
 
-              {me ? (
-                <Link className="lp-btn lp-btn-primary" to="/publicar">
+              {isAuthed ? (
+                <button className="lp-btn lp-btn-primary" onClick={goPublicar}>
                   + Publicar
-                </Link>
+                </button>
               ) : (
                 <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
                   Publicar (crear cuenta)
@@ -203,10 +233,10 @@ export default function Landing() {
           ) : filtered.length === 0 ? (
             <div className="lp-empty">
               <p>No hay publicaciones disponibles todavía.</p>
-              {me ? (
-                <Link className="lp-btn lp-btn-primary" to="/publicar">
+              {isAuthed ? (
+                <button className="lp-btn lp-btn-primary" onClick={goPublicar}>
                   Publicar la primera
-                </Link>
+                </button>
               ) : (
                 <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
                   Crear cuenta
@@ -254,7 +284,9 @@ export default function Landing() {
                             <span>{a.anio ?? "—"}</span>
                             <span className="lp-dot" />
                             <span>
-                              {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                              {a.precio == null
+                                ? "—"
+                                : `$${Number(a.precio).toLocaleString("es-MX")}`}
                             </span>
                           </div>
                         </div>
