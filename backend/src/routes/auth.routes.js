@@ -24,10 +24,9 @@ router.post("/register", async (req, res, next) => {
       return res.status(400).json({ ok: false, message: "Faltan campos" });
     }
 
-    const exists = await pool.query(
-      "SELECT 1 FROM public.users WHERE email=$1",
-      [email]
-    );
+    const exists = await pool.query("SELECT 1 FROM public.users WHERE email=$1", [
+      email,
+    ]);
     if (exists.rows.length) {
       return res
         .status(409)
@@ -43,13 +42,13 @@ router.post("/register", async (req, res, next) => {
     // ✅ Si NO se requiere verificación, lo marcamos verified=true desde el inicio
     const verifiedOnCreate = REQUIRE_EMAIL_VERIFICATION ? false : true;
 
-    // ✅ IMPORTANTE:
-    // tu tabla users tiene instance_id UUID.
-    // lo usamos como identificador real (UUID) para JWT y para publicaciones.user_id.
+    // ✅ OJO:
+    // En Supabase, instance_id existe en auth.users, NO en public.users.
+    // Aquí trabajamos con public.users, así que usamos su PK: id.
     const { rows } = await pool.query(
       `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires)
        VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING instance_id, nombre, email, creado_en, verified`,
+       RETURNING id, nombre, email, creado_en, verified`,
       [nombre, email, password_hash, verifiedOnCreate, verify_token, verify_expires]
     );
 
@@ -58,7 +57,7 @@ router.post("/register", async (req, res, next) => {
       return res.status(201).json({
         ok: true,
         user: {
-          id: rows[0].instance_id,
+          id: rows[0].id,
           nombre: rows[0].nombre,
           email: rows[0].email,
           verified: rows[0].verified,
@@ -87,7 +86,7 @@ router.post("/register", async (req, res, next) => {
     return res.status(201).json({
       ok: true,
       user: {
-        id: rows[0].instance_id,
+        id: rows[0].id,
         nombre: rows[0].nombre,
         email: rows[0].email,
         verified: rows[0].verified,
@@ -143,9 +142,9 @@ router.post("/login", async (req, res, next) => {
       return res.status(400).json({ ok: false, message: "Faltan credenciales" });
     }
 
-    // ✅ Traemos instance_id (UUID) para firmarlo en el JWT
+    // ✅ Traemos id (PK de public.users) para firmarlo en el JWT
     const { rows } = await pool.query(
-      `SELECT instance_id, nombre, email, password_hash, verified
+      `SELECT id, nombre, email, password_hash, verified
        FROM public.users
        WHERE email=$1`,
       [email]
@@ -169,9 +168,9 @@ router.post("/login", async (req, res, next) => {
       });
     }
 
-    // ✅ id = UUID (instance_id)
+    // ✅ id = public.users.id
     const token = jwt.sign(
-      { id: user.instance_id, email: user.email, nombre: user.nombre },
+      { id: user.id, email: user.email, nombre: user.nombre },
       env.JWT_SECRET,
       { expiresIn: "2h" }
     );
@@ -180,7 +179,7 @@ router.post("/login", async (req, res, next) => {
       ok: true,
       token,
       user: {
-        id: user.instance_id,
+        id: user.id,
         nombre: user.nombre,
         email: user.email,
         verified: user.verified,
