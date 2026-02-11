@@ -17,7 +17,7 @@ app.use(express.json());
    CONFIGURACIÓN CORS
 ===================================================== */
 
-// ✅ Orígenes permitidos desde ENV (separados por coma)
+// Orígenes permitidos desde ENV (separados por coma)
 const rawOrigins = (env.CORS_ORIGIN || "")
   .split(",")
   .map((o) => o.trim())
@@ -35,7 +35,7 @@ const wildcardPatterns = rawOrigins
     return new RegExp(regexStr);
   });
 
-// Función que valida origin
+// Función que valida el origin
 function isOriginAllowed(origin) {
   if (!origin) return true; // Postman / curl / server-to-server
   if (exactOrigins.has(origin)) return true;
@@ -47,12 +47,11 @@ const corsMiddleware = cors({
   origin: (origin, cb) => cb(null, isOriginAllowed(origin)),
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // 🔥 importante si usas cookies/sesión
+  credentials: true, // 🔥 deja esto en true por si usas cookies en el futuro
   optionsSuccessStatus: 204,
 });
 
 app.use(corsMiddleware);
-app.options("*", corsMiddleware); // 👈 soporte preflight
 
 /* =====================================================
    RUTAS
