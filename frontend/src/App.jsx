@@ -16,15 +16,15 @@ import Register from "./pages/Register.jsx";
 
 // protegidas
 import ProtectedRoute from "./ProtectedRoute.jsx";
-import Inventario from "./pages/Autos.jsx";
-import PublishSelect from "./pages/PublishSelect.jsx";
-import PublishForm from "./pages/PublishForm.jsx";
-import Profile from "./pages/Perfil.jsx";
+import PerfilLayout from "./pages/perfil/PerfilLayout.jsx";
+import PerfilHome from "./pages/perfil/PerfilHome.jsx";
+import PerfilInventario from "./pages/perfil/PerfilInventario.jsx";
+import PerfilPublicaciones from "./pages/perfil/PerfilPublicaciones.jsx";
+import PerfilConfiguracion from "./pages/perfil/PerfilConfiguracion.jsx";
 
 export default function App() {
   return (
     <Routes>
-      {/* ✅ Layout base para todo el sitio (AppBar + Drawer + Footer) */}
       <Route element={<AppShell />}>
         {/* públicas */}
         <Route path="/" element={<Landing />} />
@@ -38,45 +38,31 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<Verify />} />
 
-        {/* protegidas */}
-        <Route
-          path="/inventario"
-          element={
-            <ProtectedRoute>
-              <Inventario />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/publicar"
-          element={
-            <ProtectedRoute>
-              <PublishSelect />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/publicar/:group"
-          element={
-            <ProtectedRoute>
-              <PublishForm />
-            </ProtectedRoute>
-          }
-        />
-
+        {/* PERFIL (anidado) */}
         <Route
           path="/perfil"
           element={
             <ProtectedRoute>
-              <Perfil />
+              <PerfilLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          {/* /perfil */}
+          <Route index element={<PerfilHome />} />
+
+          {/* /perfil/inventario */}
+          <Route path="inventario" element={<PerfilInventario />} />
+
+          {/* /perfil/publicaciones */}
+          <Route path="publicaciones" element={<PerfilPublicaciones />} />
+
+          {/* /perfil/configuracion */}
+          <Route path="configuracion" element={<PerfilConfiguracion />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
 }
+

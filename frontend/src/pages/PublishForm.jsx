@@ -56,7 +56,7 @@ export default function PublishForm() {
     console.log("PUBLICAR PAYLOAD:", form);
 
     alert("Formulario listo. Siguiente paso: conectar endpoint del backend.");
-    nav("/inventario");
+    nav("/perfil/inventario");
   }
 
   return (

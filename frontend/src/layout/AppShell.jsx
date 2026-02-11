@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, Outlet, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AppBar,
   Toolbar,
@@ -25,6 +25,7 @@ import { api } from "../services/api";
 
 export default function AppShell() {
   const nav = useNavigate();
+  const location = useLocation();
   const [sp] = useSearchParams();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -42,7 +43,13 @@ export default function AppShell() {
   };
 
   const goPublish = () => nav("/publicar");
-  const goInventario = () => nav("/inventario");
+  const goPerfil = () => nav("/perfil");
+
+  // Mostrar selector de grupo solo donde tiene sentido
+  const showGroupSelect = useMemo(() => {
+    const p = location.pathname;
+    return p.startsWith("/catalogo") || p.startsWith("/publicar");
+  }, [location.pathname]);
 
   const logout = () => {
     api.logout?.();
@@ -58,6 +65,11 @@ export default function AppShell() {
     { label: "Nosotros", to: "/nosotros" },
     { label: "Privacidad", to: "/privacidad" },
   ];
+
+  const closeDrawerAnd = (fn) => () => {
+    setDrawerOpen(false);
+    fn?.();
+  };
 
   return (
     <Box sx={{ minHeight: "100vh" }}>
@@ -121,40 +133,42 @@ export default function AppShell() {
 
           <Box sx={{ flex: 1 }} />
 
-          {/* Dropdown de grupo */}
-          <FormControl
-            size="small"
-            sx={{
-              minWidth: 190,
-              "& .MuiInputLabel-root": { color: "rgba(255,255,255,.78)" },
-              "& .MuiOutlinedInput-root": {
-                color: "white",
-                borderRadius: 2.5,
-                background: "rgba(255,255,255,0.04)",
-              },
-              "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: "rgba(255,255,255,0.14)",
-              },
-              "&:hover .MuiOutlinedInput-notchedOutline": {
-                borderColor: "rgba(255,255,255,0.22)",
-              },
-              "& .MuiSvgIcon-root": { color: "rgba(255,255,255,.85)" },
-            }}
-          >
-            <InputLabel id="group-label">Grupo</InputLabel>
-            <Select
-              labelId="group-label"
-              value={group}
-              label="Grupo"
-              onChange={(e) => goCatalogo(normalizeGroup(e.target.value))}
+          {/* Dropdown de grupo (solo catálogo/publicar) */}
+          {showGroupSelect && (
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: 190,
+                "& .MuiInputLabel-root": { color: "rgba(255,255,255,.78)" },
+                "& .MuiOutlinedInput-root": {
+                  color: "white",
+                  borderRadius: 2.5,
+                  background: "rgba(255,255,255,0.04)",
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(255,255,255,0.14)",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(255,255,255,0.22)",
+                },
+                "& .MuiSvgIcon-root": { color: "rgba(255,255,255,.85)" },
+              }}
             >
-              {GROUP_OPTIONS.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <InputLabel id="group-label">Grupo</InputLabel>
+              <Select
+                labelId="group-label"
+                value={group}
+                label="Grupo"
+                onChange={(e) => goCatalogo(normalizeGroup(e.target.value))}
+              >
+                {GROUP_OPTIONS.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
           <Button
             onClick={() => goCatalogo(group)}
@@ -186,10 +200,10 @@ export default function AppShell() {
               </Button>
               <Button
                 variant="outlined"
-                onClick={goInventario}
+                onClick={goPerfil}
                 sx={{ textTransform: "none", fontWeight: 900 }}
               >
-                Inventario
+                Perfil
               </Button>
               <Button
                 variant="outlined"
@@ -254,58 +268,76 @@ export default function AppShell() {
 
           <List>
             {topLinks.map((l) => (
-              <ListItemButton
-                key={l.to}
-                component={Link}
-                to={l.to}
-                onClick={() => setDrawerOpen(false)}
-              >
+              <ListItemButton key={l.to} component={Link} to={l.to} onClick={() => setDrawerOpen(false)}>
                 <ListItemText primary={l.label} />
               </ListItemButton>
             ))}
           </List>
+
+          {showGroupSelect && (
+            <>
+              <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.10)" }} />
+
+              <FormControl
+                size="small"
+                fullWidth
+                sx={{
+                  "& .MuiInputLabel-root": { color: "rgba(255,255,255,.78)" },
+                  "& .MuiOutlinedInput-root": {
+                    color: "white",
+                    borderRadius: 2.5,
+                    background: "rgba(255,255,255,0.04)",
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255,255,255,0.14)",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255,255,255,0.22)",
+                  },
+                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,.85)" },
+                }}
+              >
+                <InputLabel id="group-label-drawer">Grupo</InputLabel>
+                <Select
+                  labelId="group-label-drawer"
+                  value={group}
+                  label="Grupo"
+                  onChange={(e) => {
+                    setDrawerOpen(false);
+                    goCatalogo(normalizeGroup(e.target.value));
+                  }}
+                >
+                  {GROUP_OPTIONS.map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
 
           <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.10)" }} />
 
           <List>
             {isAuthed ? (
               <>
-                <ListItemButton
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    goPublish();
-                  }}
-                >
+                <ListItemButton onClick={closeDrawerAnd(goPublish)}>
                   <ListItemText primary="Publicar" />
                 </ListItemButton>
-                <ListItemButton
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    goInventario();
-                  }}
-                >
-                  <ListItemText primary="Inventario" />
+                <ListItemButton onClick={closeDrawerAnd(goPerfil)}>
+                  <ListItemText primary="Perfil" />
                 </ListItemButton>
-                <ListItemButton onClick={logout}>
+                <ListItemButton onClick={closeDrawerAnd(logout)}>
                   <ListItemText primary="Salir" />
                 </ListItemButton>
               </>
             ) : (
               <>
-                <ListItemButton
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    nav("/login");
-                  }}
-                >
+                <ListItemButton onClick={closeDrawerAnd(() => nav("/login"))}>
                   <ListItemText primary="Entrar" />
                 </ListItemButton>
-                <ListItemButton
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    nav("/register");
-                  }}
-                >
+                <ListItemButton onClick={closeDrawerAnd(() => nav("/register"))}>
                   <ListItemText primary="Crear cuenta" />
                 </ListItemButton>
               </>

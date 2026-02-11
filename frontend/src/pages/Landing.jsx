@@ -112,7 +112,7 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-ghost" onClick={() => nav("/publicar")}>
                     Publicar
                   </button>
-                  <button className="lp-btn lp-btn-ghost" onClick={() => nav("/inventario")}>
+                  <button className="lp-btn lp-btn-ghost" onClick={() => nav("/perfil/inventario")}>
                     Inventario
                   </button>
                 </>
