@@ -52,18 +52,30 @@ app.use(corsMiddleware);
 // ✅ FIX: en algunas versiones, "*" rompe path-to-regexp
 app.options(/.*/, corsMiddleware);
 
-// ✅ Si alguien no permitido pega, responde claro (evita “misterios”)
+// ✅ Middleware de control de origen (landing pública + endpoints protegidos)
 app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin && !isOriginAllowed(origin)) {
-        return res.status(403).json({
-            ok: false,
-            message: "CORS bloqueado",
-            origin,
-        });
-    }
-    next();
+  const origin = req.headers.origin;
+
+  // 🌐 Permitir GET y OPTIONS desde cualquier origen
+  // (landing pública, listings, previews, redes con firewall)
+  if (req.method === "GET" || req.method === "OPTIONS") {
+    return next();
+  }
+
+  // 🔒 Para operaciones sensibles (POST, PUT, PATCH, DELETE)
+  // solo permitir orígenes en la allowlist
+  if (origin && !isOriginAllowed(origin)) {
+    return res.status(403).json({
+      ok: false,
+      message: "CORS bloqueado",
+      origin,
+    });
+  }
+
+  next();
 });
+
+
 
 // Rutas
 app.use("/auth", authRoutes);
