@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getGroupConfig } from "../config/catalogConfig";
+import { getGroupConfig } from "../config/catalogoConfig";
 
 function Field({ field, value, onChange }) {
   const common = {

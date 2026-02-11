@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { GROUPS } from "../config/catalogConfig";
+import { GROUPS } from "../config/catalogoConfig";
 
 export default function PublishSelect() {
   const nav = useNavigate();
