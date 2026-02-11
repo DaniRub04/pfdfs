@@ -9,7 +9,14 @@ export default function PublishSelect() {
       <h1>Publicar</h1>
       <p>Selecciona el grupo para mostrar el formulario correcto.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 16 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 12,
+          marginTop: 16,
+        }}
+      >
         {GROUPS.map((g) => (
           <button
             key={g.id}
@@ -17,10 +24,11 @@ export default function PublishSelect() {
             style={{
               padding: 16,
               borderRadius: 14,
-              border: "1px solid #333",
-              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.04)",
               color: "inherit",
               textAlign: "left",
+              cursor: "pointer",
             }}
           >
             <div style={{ fontWeight: 800, fontSize: 18 }}>{g.title}</div>

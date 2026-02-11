@@ -2,9 +2,11 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+
 import authRoutes from "./routes/auth.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import autosRoutes from "./routes/autos.routes.js";
+import publicarRoutes from "./routes/publicar.routes.js"; // ✅ NUEVO
 
 export const app = express();
 
@@ -89,6 +91,7 @@ app.use((req, res, next) => {
 app.use("/auth", authRoutes);
 app.use("/profile", profileRoutes);
 app.use("/autos", autosRoutes);
+app.use("/publicar", publicarRoutes); // ✅ NUEVO (publicación unificada por group)
 
 // Health check (Render)
 app.get("/health", (req, res) => {
