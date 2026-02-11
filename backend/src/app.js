@@ -44,7 +44,8 @@ const corsMiddleware = cors({
 });
 
 app.use(corsMiddleware);
-app.options("*", corsMiddleware);
+app.use(corsMiddleware);
+
 
 // Rutas
 app.get("/health", (req, res) => res.json({ ok: true }));
