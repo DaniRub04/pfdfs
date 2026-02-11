@@ -1,7 +1,6 @@
 // backend/src/app.js
 import express from "express";
 import cors from "cors";
-import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 
 import authRoutes from "./routes/auth.routes.js";
@@ -14,41 +13,14 @@ export const app = express();
 app.use(express.json());
 
 /* =====================================================
-   CONFIGURACIÓN CORS
+   CONFIGURACIÓN CORS (MODO DEBUG - ABIERTO)
 ===================================================== */
 
-// Orígenes permitidos desde ENV (separados por coma)
-const rawOrigins = (env.CORS_ORIGIN || "")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
-
-// Exactos (sin *)
-const exactOrigins = new Set(rawOrigins.filter((o) => !o.includes("*")));
-
-// Wildcards (ej: https://*.vercel.app)
-const wildcardPatterns = rawOrigins
-  .filter((o) => o.includes("*"))
-  .map((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-    const regexStr = "^" + escaped.replace("\\*", ".*") + "$";
-    return new RegExp(regexStr);
-  });
-
-// Función que valida el origin
-function isOriginAllowed(origin) {
-  if (!origin) return true; // Postman / curl / server-to-server
-  if (exactOrigins.has(origin)) return true;
-  return wildcardPatterns.some((re) => re.test(origin));
-}
-
-// Middleware CORS
 const corsMiddleware = cors({
-  origin: (origin, cb) => cb(null, isOriginAllowed(origin)),
+  origin: true, // 🔥 permite cualquier origin temporalmente
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // 🔥 deja esto en true por si usas cookies en el futuro
-  optionsSuccessStatus: 204,
+  credentials: true,
 });
 
 app.use(corsMiddleware);
