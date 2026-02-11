@@ -19,7 +19,7 @@ import ProtectedRoute from "./ProtectedRoute.jsx";
 import Inventario from "./pages/Autos.jsx";
 import PublishSelect from "./pages/PublishSelect.jsx";
 import PublishForm from "./pages/PublishForm.jsx";
-import Profile from "./pages/Profile.jsx";
+import Profile from "./pages/Perfil.jsx";
 
 export default function App() {
   return (
@@ -70,7 +70,7 @@ export default function App() {
           path="/perfil"
           element={
             <ProtectedRoute>
-              <Profile />
+              <Perfil />
             </ProtectedRoute>
           }
         />
