@@ -17,7 +17,7 @@ import {
 import { api } from "../services/api";
 
 // Si tú ya tienes catalogConfig, lo seguimos usando:
-import { GROUPS } from "../config/catalogConfig";
+import { GROUPS } from "../config/catalogoConfig";
 
 function normalizeGroup(groupId, fallback = "automotriz") {
   const ok = GROUPS.some((g) => g.id === groupId);
