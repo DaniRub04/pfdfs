@@ -45,7 +45,7 @@ export default function Landing() {
     [group]
   );
 
-  // ✅ auth (no dependas solo de "me")
+  // auth
   const [me, setMe] = useState(null);
   const [isAuthed, setIsAuthed] = useState(Boolean(getLocalToken()));
 
@@ -62,7 +62,7 @@ export default function Landing() {
     } catch {
       setMe(null);
     } finally {
-      // ✅ si hay token, consideramos sesión aunque /me falle temporalmente
+      // ✅ token es la fuente de verdad para rutas protegidas
       setIsAuthed(Boolean(getLocalToken()));
     }
   }
@@ -104,10 +104,10 @@ export default function Landing() {
     nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
+  // ✅ Publicar directo al FORM del grupo actual
   function goPublicar() {
-    // ✅ si no hay token, manda a login
     if (!getLocalToken()) return nav("/login");
-    nav("/publicar");
+    nav(`/publicar/${encodeURIComponent(group)}`);
   }
 
   function goInventario() {
@@ -128,34 +128,34 @@ export default function Landing() {
             </p>
 
             <div className="lp-hero-cta">
-              <button className="lp-btn lp-btn-primary" onClick={goCatalogo}>
+              <button className="lp-btn lp-btn-primary" type="button" onClick={goCatalogo}>
                 Explorar {groupLabel}
               </button>
 
               {isAuthed ? (
                 <>
-                  <button className="lp-btn lp-btn-ghost" onClick={goPublicar}>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={goPublicar}>
                     Publicar
                   </button>
-                  <button className="lp-btn lp-btn-ghost" onClick={goInventario}>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={goInventario}>
                     Inventario
                   </button>
                 </>
               ) : (
                 <>
-                  <button className="lp-btn lp-btn-ghost" onClick={() => nav("/login")}>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/login")}>
                     Iniciar sesión
                   </button>
-                  <button className="lp-btn lp-btn-ghost" onClick={() => nav("/register")}>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/register")}>
                     Crear cuenta
                   </button>
                 </>
               )}
             </div>
 
-            {/* (opcional) debug visual mínimo */}
+            {/* opcional: debug */}
             {/* <div style={{ opacity: 0.7, marginTop: 8, fontSize: 12 }}>
-              authed: {String(isAuthed)} {me ? "• me ok" : "• me null"}
+              authed: {String(isAuthed)} • token: {getLocalToken() ? "sí" : "no"} • me: {me ? "sí" : "no"}
             </div> */}
           </div>
         </section>
@@ -183,20 +183,21 @@ export default function Landing() {
             <h2>Publicaciones disponibles</h2>
 
             <div className="lp-market-actions">
-              <button className="lp-btn lp-btn-ghost" onClick={loadPublic} disabled={loading}>
+              <button className="lp-btn lp-btn-ghost" type="button" onClick={loadPublic} disabled={loading}>
                 ↻ Recargar
               </button>
 
-              <button className="lp-btn lp-btn-primary" onClick={goCatalogo}>
+              <button className="lp-btn lp-btn-primary" type="button" onClick={goCatalogo}>
                 Ver catálogo
               </button>
 
               {isAuthed ? (
-                <button className="lp-btn lp-btn-primary" onClick={goPublicar}>
+                // ✅ Directo al formulario
+                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
                   + Publicar
                 </button>
               ) : (
-                <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
+                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Publicar (crear cuenta)
                 </button>
               )}
@@ -234,11 +235,11 @@ export default function Landing() {
             <div className="lp-empty">
               <p>No hay publicaciones disponibles todavía.</p>
               {isAuthed ? (
-                <button className="lp-btn lp-btn-primary" onClick={goPublicar}>
+                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
                   Publicar la primera
                 </button>
               ) : (
-                <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
+                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Crear cuenta
                 </button>
               )}
@@ -284,9 +285,7 @@ export default function Landing() {
                             <span>{a.anio ?? "—"}</span>
                             <span className="lp-dot" />
                             <span>
-                              {a.precio == null
-                                ? "—"
-                                : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                              {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
                             </span>
                           </div>
                         </div>
@@ -301,7 +300,7 @@ export default function Landing() {
                       <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
 
                       <div className="lp-card-foot">
-                        <button className="lp-btn lp-btn-ghost" onClick={goCatalogo}>
+                        <button className="lp-btn lp-btn-ghost" type="button" onClick={goCatalogo}>
                           Ver en catálogo
                         </button>
                       </div>
@@ -321,13 +320,13 @@ export default function Landing() {
           <p>Instagram: @selectaplaza</p>
 
           <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button className="lp-btn lp-btn-ghost" onClick={() => nav("/nosotros")}>
+            <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/nosotros")}>
               Ver más
             </button>
-            <button className="lp-btn lp-btn-ghost" onClick={() => nav("/privacidad")}>
+            <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/privacidad")}>
               Aviso de privacidad
             </button>
-            <button className="lp-btn lp-btn-ghost" onClick={() => nav("/ayuda")}>
+            <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/ayuda")}>
               Ayuda
             </button>
           </div>

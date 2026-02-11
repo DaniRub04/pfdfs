@@ -14,6 +14,10 @@ import Login from "./pages/Login.jsx";
 import Verify from "./pages/Verify.jsx";
 import Register from "./pages/Register.jsx";
 
+// publicar (protegidas)
+import PublishSelect from "./pages/PublishSelect.jsx";
+import PublishForm from "./pages/PublishForm.jsx";
+
 // protegidas
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import PerfilLayout from "./pages/perfil/PerfilLayout.jsx";
@@ -25,6 +29,7 @@ import PerfilConfiguracion from "./pages/perfil/PerfilConfiguracion.jsx";
 export default function App() {
   return (
     <Routes>
+      {/* ✅ Layout base para todo el sitio */}
       <Route element={<AppShell />}>
         {/* públicas */}
         <Route path="/" element={<Landing />} />
@@ -38,7 +43,26 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<Verify />} />
 
-        {/* PERFIL (anidado) */}
+        {/* ✅ PUBLICAR (protegidas) */}
+        <Route
+          path="/publicar"
+          element={
+            <ProtectedRoute>
+              <PublishSelect />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/publicar/:group"
+          element={
+            <ProtectedRoute>
+              <PublishForm />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ✅ PERFIL (anidado y protegido) */}
         <Route
           path="/perfil"
           element={
@@ -58,11 +82,14 @@ export default function App() {
 
           {/* /perfil/configuracion */}
           <Route path="configuracion" element={<PerfilConfiguracion />} />
+
+          {/* ✅ si alguien entra a una subruta inválida dentro de /perfil */}
+          <Route path="*" element={<Navigate to="/perfil" replace />} />
         </Route>
 
+        {/* ✅ catch-all global */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
 }
-
