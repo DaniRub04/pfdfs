@@ -1,13 +1,23 @@
 // backend/src/routes/publicar.routes.js
 import { Router } from "express";
-import { publicar } from "../controllers/publicar.controllers.js";
+import { publicar } from "../controllers/publicar.controllers.js"; 
+// 👆 OJO: revisa que el nombre del archivo sea EXACTAMENTE publicar.controller.js
 
-// Si ya tienes middleware auth: import { requireAuth } from "../middlewares/auth.js";
+// Si tienes middleware de autenticación:
+import { requireAuth } from "../middlewares/auth.js";
+
 const router = Router();
 
-// Si quieres que SOLO usuarios logeados publiquen, descomenta requireAuth
-// router.post("/", requireAuth, publicar);
+/**
+ * POST /publicar
+ * Crea una nueva publicación
+ * Requiere autenticación
+ */
 
-router.post("/", publicar);
+// 🔥 Recomiendo dejar requireAuth activo en producción
+router.post("/", requireAuth, publicar);
+
+// Si quieres permitir publicar sin login (no recomendado), usa esto:
+// router.post("/", publicar);
 
 export default router;
