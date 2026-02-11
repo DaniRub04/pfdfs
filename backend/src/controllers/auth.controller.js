@@ -12,7 +12,7 @@ function normalizeEmail(email) {
   return String(email || "").toLowerCase().trim();
 }
 
-// Validación simple de UUID v4/v1/etc (suficiente para evitar el error "invalid input syntax for type uuid")
+// Validación simple de UUID (evita "invalid input syntax for type uuid")
 function isUUID(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value || "")
@@ -36,7 +36,7 @@ export const register = async (req, res, next) => {
     const emailNorm = normalizeEmail(email);
 
     // ¿ya existe?
-    const exists = await pool.query("SELECT id FROM users WHERE email = $1", [
+    const exists = await pool.query("SELECT 1 FROM public.users WHERE email = $1", [
       emailNorm,
     ]);
 
@@ -54,11 +54,12 @@ export const register = async (req, res, next) => {
     const verify_expires = new Date(Date.now() + 1000 * 60 * 60);
 
     // crea user
+    // ✅ IMPORTANTE: devolvemos instance_id como id (UUID)
     const { rows } = await pool.query(
-      `INSERT INTO users (nombre, email, password_hash, verified, verify_token, verify_expires)
+      `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires)
        VALUES ($1, $2, $3, false, $4, $5)
-       RETURNING id, nombre, email, verified`,
-      [nombre.trim(), emailNorm, password_hash, verify_token, verify_expires]
+       RETURNING instance_id AS id, nombre, email, verified`,
+      [String(nombre).trim(), emailNorm, password_hash, verify_token, verify_expires]
     );
 
     // URL a tu frontend (Vercel)
@@ -67,14 +68,14 @@ export const register = async (req, res, next) => {
     // enviar correo
     await sendVerifyEmail({
       to: emailNorm,
-      name: nombre.trim(),
+      name: String(nombre).trim(),
       verifyUrl,
     });
 
     return res.status(201).json({
       ok: true,
       message: "Registro exitoso. Revisa tu correo para verificar tu cuenta.",
-      user: rows[0],
+      user: rows[0], // { id (uuid), nombre, email, verified }
     });
   } catch (err) {
     next(err);
@@ -93,16 +94,17 @@ export const verifyEmail = async (req, res, next) => {
       return res.status(400).json({ ok: false, message: "Token requerido" });
     }
 
+    // ✅ devolvemos instance_id como id (UUID)
     const { rowCount, rows } = await pool.query(
-      `UPDATE users
+      `UPDATE public.users
        SET verified = true,
            verify_token = NULL,
            verify_expires = NULL
        WHERE verify_token = $1
          AND verify_expires > now()
          AND verified = false
-       RETURNING id, email, verified`,
-      [token]
+       RETURNING instance_id AS id, email, verified`,
+      [String(token)]
     );
 
     if (rowCount === 0) {
@@ -137,9 +139,10 @@ export const login = async (req, res, next) => {
 
     const emailNorm = normalizeEmail(email);
 
+    // ✅ IMPORTANTE: usamos instance_id como id (UUID)
     const { rows } = await pool.query(
-      `SELECT id, nombre, email, password_hash, verified
-       FROM users
+      `SELECT instance_id AS id, nombre, email, password_hash, verified
+       FROM public.users
        WHERE email = $1`,
       [emailNorm]
     );
@@ -163,25 +166,24 @@ export const login = async (req, res, next) => {
       });
     }
 
-    // ✅ IMPORTANTE: si tu DB usa UUID en users.id, aquí debe ser UUID real
-    // Si no lo es, preferimos responder con error claro en lugar de que falle al publicar.
+    // ✅ Aseguramos UUID real para que publicar.user_id (uuid) funcione
     if (!isUUID(user.id)) {
       return res.status(500).json({
         ok: false,
         message:
-          "El usuario tiene un id inválido (no es UUID). Revisa la columna users.id o el origen del id.",
+          "El usuario no tiene un UUID válido (instance_id). Revisa la columna users.instance_id.",
         debug: { userId: String(user.id) },
       });
     }
 
     const token = jwt.sign(
       {
-        id: String(user.id), // 👈 asegurar string
+        id: String(user.id), // 👈 UUID
         email: user.email,
         nombre: user.nombre,
       },
       env.JWT_SECRET,
-      { expiresIn: "1d" } // puedes volver a 2h si quieres
+      { expiresIn: "1d" }
     );
 
     return res.json({
