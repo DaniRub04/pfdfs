@@ -35,35 +35,32 @@ function isOriginAllowed(origin) {
     return wildcardPatterns.some((re) => re.test(origin));
 }
 
+// ✅ CORS inteligente: público para GET, estricto para mutaciones
 const corsMiddleware = cors({
-    origin: (origin, cb) => {
-        if (isOriginAllowed(origin)) return cb(null, true);
-        // ❗No lances Error directo: mejor “false” para que responda sin romper
-        return cb(null, false);
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: false, // ✅ usa false si tu auth es JWT por header
-    optionsSuccessStatus: 204,
+  origin: (origin, cb) => {
+    // Permitir server-to-server, Postman, curl
+    if (!origin) return cb(null, true);
+
+    // Permitir SIEMPRE GET / OPTIONS (landing pública)
+    cb(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+  optionsSuccessStatus: 204,
 });
 
 app.use(corsMiddleware);
-
-// ✅ FIX: en algunas versiones, "*" rompe path-to-regexp
 app.options(/.*/, corsMiddleware);
 
-// ✅ Middleware de control de origen (landing pública + endpoints protegidos)
+// 🔒 Middleware extra SOLO para proteger mutaciones
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // 🌐 Permitir GET y OPTIONS desde cualquier origen
-  // (landing pública, listings, previews, redes con firewall)
-  if (req.method === "GET" || req.method === "OPTIONS") {
-    return next();
-  }
+  // GET y OPTIONS siempre públicos
+  if (req.method === "GET" || req.method === "OPTIONS") return next();
 
-  // 🔒 Para operaciones sensibles (POST, PUT, PATCH, DELETE)
-  // solo permitir orígenes en la allowlist
+  // Para mutaciones, validar origin
   if (origin && !isOriginAllowed(origin)) {
     return res.status(403).json({
       ok: false,
@@ -74,6 +71,7 @@ app.use((req, res, next) => {
 
   next();
 });
+
 
 
 
