@@ -11,6 +11,7 @@ export function auth(req, res, next) {
     }
 
     const payload = jwt.verify(token, env.JWT_SECRET);
+    console.log("JWT PAYLOAD:", payload);
     req.user = payload; // {id, email, nombre}
     next();
   } catch (e) {
