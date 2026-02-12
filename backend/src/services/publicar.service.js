@@ -35,12 +35,14 @@ export async function createPublication({ group, data, userId }) {
 console.log("userId recibido:", userId, typeof userId); //DEBUG
 
 
-  // ✅ IMPORTANTE: user_id en BD es UUID
-  if (!isUuid(String(userId))) {
-    const err = new Error("No autorizado: userId no es UUID válido");
-    err.status = 401;
-    throw err;
-  }
+const uid = Number(userId);
+
+if (!Number.isInteger(uid) || uid <= 0) {
+  const err = new Error("No autorizado: userId inválido");
+  err.status = 401;
+  throw err;
+}
+
 
   const groupNormalized = group.trim().toLowerCase();
 
