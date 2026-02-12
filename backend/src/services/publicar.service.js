@@ -33,7 +33,7 @@ export async function createPublication({ group, data, userId }) {
     throw err;
   }
 console.log("userId recibido:", userId, typeof userId); //DEBUG
-console.log("INSERT VALUES:", values);
+
 
   // ✅ IMPORTANTE: user_id en BD es UUID
   if (!isUuid(String(userId))) {
@@ -93,9 +93,9 @@ export async function listPublications({ group = null, limit = 12 }) {
       order by created_at desc
       limit $1
     `;
-
+  console.log("INSERT VALUES1:", values);
   const values = groupNormalized ? [groupNormalized, safeLimit] : [safeLimit];
-
+  console.log("INSERT VALUES2:", values);
   const { rows } = await pool.query(q, values);
   return rows;
 }
