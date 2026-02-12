@@ -99,4 +99,4 @@ export async function listPublications({ group = null, limit = 12 }) {
   const { rows } = await pool.query(q, values);
   return rows;
 }
-  
+  console.log("INSERT VALUES3:", values);
