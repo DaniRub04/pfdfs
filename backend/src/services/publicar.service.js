@@ -33,6 +33,7 @@ export async function createPublication({ group, data, userId }) {
     throw err;
   }
 console.log("userId recibido:", userId, typeof userId); //DEBUG
+console.log("INSERT VALUES:", values);
 
   // ✅ IMPORTANTE: user_id en BD es UUID
   if (!isUuid(String(userId))) {
