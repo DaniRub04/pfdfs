@@ -32,6 +32,7 @@ export async function createPublication({ group, data, userId }) {
     err.status = 401;
     throw err;
   }
+console.log("userId recibido:", userId, typeof userId); //DEBUG
 
   // ✅ IMPORTANTE: user_id en BD es UUID
   if (!isUuid(String(userId))) {
