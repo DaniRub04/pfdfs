@@ -275,7 +275,7 @@ export default function Autos() {
                     value={form.marca}
                     onChange={onChange}
                     style={styles.input}
-                    placeholder="Toyota"
+                    placeholder="Nombre"
                     autoFocus
                   />
                 </div>

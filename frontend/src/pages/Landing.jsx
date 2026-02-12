@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
 import "../styles/landing.css";
 
@@ -9,42 +9,51 @@ const DEMO_MODELS = [
   { id: "m3", img: "/landing/img/carro3.avif", price: "1,100,000 MXN", name: "Modelo destacado 3" },
 ];
 
-// ✅ BANDERAS PARA APAGAR MENSAJES (sin borrar)
-const SHOW_SECURITY_BULLETS = false; // <- pon true cuando quieras volver a mostrarlos
+// ✅ Grupo/categoría principal (para tu catálogo por grupos)
+const GROUP_OPTIONS = [
+  { id: "automotriz", label: "Automotriz" },
+  { id: "marketplace", label: "Marketplace" },
+  { id: "empresas", label: "Empresas" },
+  { id: "universidades", label: "Universidades" },
+  { id: "instituciones", label: "Instituciones" },
+];
+
+function normalizeGroup(groupId, fallback = "automotriz") {
+  const ok = GROUP_OPTIONS.some((g) => g.id === groupId);
+  return ok ? groupId : fallback;
+}
+
+function getLocalToken() {
+  return (
+    api.getToken?.() ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("auth_token") ||
+    ""
+  );
+}
 
 export default function Landing() {
   const nav = useNavigate();
+  const [sp] = useSearchParams();
 
-  // UI (header/menu/search/modal)
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
+  // ✅ respeta /?group=...
+  const group = useMemo(() => normalizeGroup(sp.get("group") || "automotriz"), [sp]);
+
+  const groupLabel = useMemo(
+    () => GROUP_OPTIONS.find((g) => g.id === group)?.label || "Catálogo",
+    [group]
+  );
 
   // auth
   const [me, setMe] = useState(null);
+  const [isAuthed, setIsAuthed] = useState(Boolean(getLocalToken()));
 
-  // autos publicados (preview)
+  // preview público
   const [items, setItems] = useState([]);
-  const [loadingAutos, setLoadingAutos] = useState(true);
-  const [autosErr, setAutosErr] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
   const [q, setQ] = useState("");
-
-  function scrollToSection(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth" });
-    setSidebarOpen(false);
-    setSearchOpen(false);
-  }
-
-  function openLogin() {
-    setLoginOpen(true);
-    setSidebarOpen(false);
-  }
-
-  function closeLogin() {
-    setLoginOpen(false);
-  }
 
   async function loadMe() {
     try {
@@ -52,178 +61,110 @@ export default function Landing() {
       setMe(meData);
     } catch {
       setMe(null);
+    } finally {
+      // ✅ token es la fuente de verdad para rutas protegidas
+      setIsAuthed(Boolean(getLocalToken()));
     }
   }
 
-  // ✅ CATÁLOGO PÚBLICO (sin token)
-  async function loadAutos() {
-    setAutosErr("");
-    setLoadingAutos(true);
+  async function loadPublic() {
+    setErr("");
+    setLoading(true);
     try {
-      const data = await api.autos.publicList(); // ✅ público
+      const data = await api.autos.publicList(); // público
       const list = Array.isArray(data) ? data : data?.items || [];
-
-      // ✅ catálogo público: solo "disponible"
       const publicList = list.filter((a) => (a.estado || "disponible") === "disponible");
-
       setItems(publicList);
     } catch (e) {
-      setAutosErr(e?.message || "No se pudieron cargar autos");
+      setErr(e?.message || "No se pudieron cargar publicaciones");
       setItems([]);
     } finally {
-      setLoadingAutos(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     loadMe();
-    loadAutos();
+    loadPublic();
   }, []);
 
-  const filteredAutos = useMemo(() => {
+  const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return items.slice(0, 6);
     return items
       .filter((x) =>
-        `${x.marca || ""} ${x.modelo || ""} ${x.estado || ""} ${x.descripcion || ""}`
+        `${x.marca || ""} ${x.modelo || ""} ${x.titulo || ""} ${x.descripcion || ""}`
           .toLowerCase()
           .includes(s)
       )
       .slice(0, 6);
   }, [items, q]);
 
-  function logout() {
-    api.logout();
-    setMe(null);
-    nav("/");
+  function goCatalogo() {
+    nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
-  function goToLogin() {
-    closeLogin();
-    nav("/login");
+  // ✅ Publicar directo al FORM del grupo actual
+  function goPublicar() {
+    if (!getLocalToken()) return nav("/login");
+    nav(`/publicar/${encodeURIComponent(group)}`);
+  }
+
+  function goInventario() {
+    if (!getLocalToken()) return nav("/login");
+    nav("/perfil/inventario");
   }
 
   return (
     <div className="lp">
-      {/* HEADER */}
-      <header className="lp-header">
-        <button
-          className="lp-icon-btn"
-          onClick={() => setSidebarOpen((v) => !v)}
-          aria-label="Abrir menú"
-        >
-          ☰
-        </button>
-
-        <div
-          className="lp-logo"
-          onClick={() => scrollToSection("top")}
-          role="button"
-          tabIndex={0}
-          title="Inicio"
-        >
-          AU<span>TRUST</span>
-        </div>
-
-        <div className="lp-right">
-          {me ? (
-            <div className="lp-user">
-              <span className="lp-user-mail">{me.email}</span>
-              <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
-                Ir a inventario
-              </button>
-              <button className="lp-btn lp-btn-danger" onClick={logout}>
-                Cerrar sesión
-              </button>
-            </div>
-          ) : (
-            <div className="lp-user">
-              <button className="lp-btn lp-btn-ghost" onClick={openLogin}>
-                Iniciar sesión
-              </button>
-              <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
-                Crear cuenta
-              </button>
-            </div>
-          )}
-
-          <button
-            className="lp-search"
-            onClick={() => setSearchOpen((v) => !v)}
-            aria-label="Buscar"
-          />
-        </div>
-      </header>
-
-      {/* SEARCH BAR */}
-      <div className={`lp-searchbar ${searchOpen ? "active" : ""}`}>
-        <input
-          type="text"
-          placeholder="Buscar autos (marca, modelo...)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
-
-      {/* SIDEBAR */}
-      <aside className={`lp-sidebar ${sidebarOpen ? "active" : ""}`}>
-        <h3>Menú</h3>
-        <ul>
-          <li onClick={() => scrollToSection("models")}>Modelos destacados</li>
-          <li onClick={() => scrollToSection("market")}>Autos en venta</li>
-          <li onClick={() => scrollToSection("about")}>Nosotros</li>
-
-          <li onClick={() => nav("/autos")}>Inventario (CRUD)</li>
-
-          {!me ? (
-            <>
-              <li onClick={() => nav("/login")}>Iniciar sesión</li>
-              <li onClick={() => nav("/register")}>Crear cuenta</li>
-            </>
-          ) : (
-            <li onClick={logout}>Cerrar sesión</li>
-          )}
-        </ul>
-      </aside>
-
-      {/* MAIN */}
       <main className="lp-main" id="top">
         {/* HERO */}
         <section className="lp-hero">
           <div className="lp-hero-content">
-            <h1>Autos en venta: rápido, claro, confiable.</h1>
-            <p>Explora autos disponibles. Publica y administra tu inventario con una experiencia moderna.</p>
-
-            {/* ✅ Si quieres meter bullets en landing, aquí quedaría */}
-            {SHOW_SECURITY_BULLETS && (
-              <ul className="lp-hero-bullets">
-                <li>Control de estados: disponible, apartado, vendido.</li>
-              </ul>
-            )}
+            <h1>Catálogo por grupos: rápido, claro, confiable.</h1>
+            <p>
+              Explora publicaciones por categoría principal. Enfoque actual: <b>{groupLabel}</b>.
+              Publica y administra tu inventario con una experiencia moderna.
+            </p>
 
             <div className="lp-hero-cta">
-              <button className="lp-btn lp-btn-primary" onClick={() => scrollToSection("market")}>
-                Explorar autos
+              <button className="lp-btn lp-btn-primary" type="button" onClick={goCatalogo}>
+                Explorar {groupLabel}
               </button>
 
-              {me ? (
-                <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
-                  Administrar inventario
-                </button>
+              {isAuthed ? (
+                <>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={goPublicar}>
+                    Publicar
+                  </button>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={goInventario}>
+                    Inventario
+                  </button>
+                </>
               ) : (
-                <button className="lp-btn lp-btn-ghost" onClick={() => nav("/register")}>
-                  Crear cuenta
-                </button>
+                <>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/login")}>
+                    Iniciar sesión
+                  </button>
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/register")}>
+                    Crear cuenta
+                  </button>
+                </>
               )}
             </div>
+
+            {/* opcional: debug */}
+            {/* <div style={{ opacity: 0.7, marginTop: 8, fontSize: 12 }}>
+              authed: {String(isAuthed)} • token: {getLocalToken() ? "sí" : "no"} • me: {me ? "sí" : "no"}
+            </div> */}
           </div>
         </section>
 
-        {/* MODELOS DESTACADOS (demo) */}
+        {/* DESTACADOS (demo visual) */}
         <section className="lp-section" id="models">
           <div className="lp-section-head">
-            <h2>Modelos destacados</h2>
-            <p>Autos en venta</p>
+            <h2>Destacados</h2>
+            <p>Vista previa</p>
           </div>
 
           <div className="lp-model-grid">
@@ -236,73 +177,96 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* MARKET */}
+        {/* PREVIEW PÚBLICO */}
         <section className="lp-section" id="market">
           <div className="lp-section-head">
-            <h2>Autos en venta</h2>
+            <h2>Publicaciones disponibles</h2>
 
             <div className="lp-market-actions">
-              <button className="lp-btn lp-btn-ghost" onClick={loadAutos} disabled={loadingAutos}>
+              <button className="lp-btn lp-btn-ghost" type="button" onClick={loadPublic} disabled={loading}>
                 ↻ Recargar
               </button>
 
-              {me ? (
-                <Link className="lp-btn lp-btn-primary" to="/autos">
-                  + Publicar auto
-                </Link>
+              <button className="lp-btn lp-btn-primary" type="button" onClick={goCatalogo}>
+                Ver catálogo
+              </button>
+
+              {isAuthed ? (
+                // ✅ Directo al formulario
+                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                  + Publicar
+                </button>
               ) : (
-                <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
+                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Publicar (crear cuenta)
                 </button>
               )}
             </div>
           </div>
 
-          {autosErr && <div className="lp-alert">❌ {autosErr}</div>}
+          {/* buscador del preview */}
+          <div style={{ marginTop: 12 }}>
+            <input
+              type="text"
+              placeholder="Buscar en la vista previa…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: "rgba(255,255,255,0.05)",
+                color: "#fff",
+                outline: "none",
+              }}
+            />
+          </div>
 
-          {loadingAutos ? (
+          {err && <div className="lp-alert">❌ {err}</div>}
+
+          {loading ? (
             <div className="lp-skeleton-grid">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div className="lp-skeleton" key={i} />
               ))}
             </div>
-          ) : filteredAutos.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="lp-empty">
-              <p>No hay autos disponibles todavía.</p>
-              {me ? (
-                <Link className="lp-btn lp-btn-primary" to="/autos">
-                  Publicar el primero
-                </Link>
+              <p>No hay publicaciones disponibles todavía.</p>
+              {isAuthed ? (
+                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                  Publicar la primera
+                </button>
               ) : (
-                <button className="lp-btn lp-btn-primary" onClick={() => nav("/register")}>
+                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Crear cuenta
                 </button>
               )}
             </div>
           ) : (
             <div className="lp-cards">
-              {filteredAutos.map((a) => {
-                // ✅ IMAGEN REAL (fallback)
+              {filtered.map((a) => {
                 const imgSrc = a?.foto_url || a?.imagenes?.[0] || "";
+                const title = a?.titulo || `${a?.marca || "Publicación"} ${a?.modelo || ""}`.trim();
 
                 return (
                   <article className="lp-card" key={a.id}>
-                    {/* ✅ si hay img, se pinta <img>; si no, queda placeholder */}
                     <div className={`lp-card-img ${!imgSrc ? "lp-card-img--placeholder" : ""}`}>
                       {imgSrc ? (
                         <img
                           src={imgSrc}
-                          alt={`${a.marca || "Auto"} ${a.modelo || ""}`}
+                          alt={title}
                           className="lp-card-img__img"
                           loading="lazy"
                         />
                       ) : (
                         <>
                           <div className="lp-card-img__brand">
-                            AU<span>TRUST</span>
+                            SELECTA<span>PLAZA</span>
                           </div>
                           <div className="lp-card-img__meta">
-                            <span>{a.marca || "Auto"}</span>
+                            <span>{a.marca || "Item"}</span>
                             <span className="lp-dot" />
                             <span>{a.modelo || "—"}</span>
                           </div>
@@ -310,38 +274,36 @@ export default function Landing() {
                       )}
                     </div>
 
-                    <div className="lp-card-head">
-                      <div>
-                        <div className="lp-card-title">
-                          {a.marca} <span>{a.modelo}</span>
+                    <div className="lp-card-body">
+                      <div className="lp-card-head">
+                        <div>
+                          <div className="lp-card-title">
+                            {a.marca} <span>{a.modelo}</span>
+                          </div>
+
+                          <div className="lp-card-meta">
+                            <span>{a.anio ?? "—"}</span>
+                            <span className="lp-dot" />
+                            <span>
+                              {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="lp-card-meta">
-                          <span>{a.anio ?? "—"}</span>
-                          <span className="lp-dot" />
-                          <span>
-                            {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
+                        {a.estado && (
+                          <span className={`lp-badge lp-badge-${a.estado || "disponible"}`}>
+                            {a.estado || "disponible"}
                           </span>
-                        </div>
+                        )}
                       </div>
 
-                      <span className={`lp-badge lp-badge-${a.estado || "disponible"}`}>
-                        {a.estado || "disponible"}
-                      </span>
-                    </div>
+                      <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
 
-                    <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
-
-                    <div className="lp-card-foot">
-                      {me ? (
-                        <button className="lp-btn lp-btn-ghost" onClick={() => nav("/autos")}>
-                          Ver en inventario
+                      <div className="lp-card-foot">
+                        <button className="lp-btn lp-btn-ghost" type="button" onClick={goCatalogo}>
+                          Ver en catálogo
                         </button>
-                      ) : (
-                        <button className="lp-btn lp-btn-ghost" onClick={openLogin}>
-                          Iniciar sesión
-                        </button>
-                      )}
+                      </div>
                     </div>
                   </article>
                 );
@@ -355,29 +317,21 @@ export default function Landing() {
           <h2>Nosotros</h2>
           <p>Calidad, innovación y confianza.</p>
           <p>Whatsapp: 9954635434</p>
-          <p>Instagram: autrust</p>
-        </section>
-      </main>
+          <p>Instagram: @selectaplaza</p>
 
-      {/* LOGIN MODAL */}
-      <div className={`lp-modal ${loginOpen ? "active" : ""}`} onMouseDown={closeLogin}>
-        <div className="lp-modal-content" onMouseDown={(e) => e.stopPropagation()}>
-          <h2>Iniciar sesión</h2>
-          <p style={{ marginTop: 0, opacity: 0.85, fontSize: 13 }}>
-            Para publicar o administrar autos necesitas iniciar sesión.
-          </p>
-
-          <button type="button" onClick={goToLogin}>
-            Ir a Login
-          </button>
-
-          <div className="lp-modal-foot">
-            <button className="lp-btn lp-btn-ghost" onClick={closeLogin} type="button">
-              Cerrar
+          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/nosotros")}>
+              Ver más
+            </button>
+            <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/privacidad")}>
+              Aviso de privacidad
+            </button>
+            <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/ayuda")}>
+              Ayuda
             </button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
