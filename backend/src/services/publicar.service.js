@@ -46,7 +46,7 @@ console.log("userId recibido:", userId, typeof userId); //DEBUG
   // ✅ En tu BD la columna es group_id (no "group")
   const q = `
     insert into publicaciones (group_id, data, user_id)
-    values ($1, $2::jsonb, $3::uuid)
+    values ($1, $2::jsonb, $3::int8)
     returning id, group_id, data, user_id, created_at
   `;
 

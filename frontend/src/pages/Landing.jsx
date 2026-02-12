@@ -121,7 +121,7 @@ export default function Landing() {
         {/* HERO */}
         <section className="lp-hero">
           <div className="lp-hero-content">
-            <h1>HOLACatálogo por grupos: rápido, claro, confiable.</h1>
+            <h1>HOLACOMOESTASCatálogo por grupos: rápido, claro, confiable.</h1>
             <p>
               Explora publicaciones por categoría principal. Enfoque actual: <b>{groupLabel}</b>.
               Publica y administra tu inventario con una experiencia moderna.
