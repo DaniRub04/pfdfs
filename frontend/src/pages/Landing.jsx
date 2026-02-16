@@ -1,3 +1,4 @@
+// frontend/src/pages/Landing.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
@@ -9,7 +10,7 @@ const DEMO_MODELS = [
   { id: "m3", img: "/landing/img/carro3.avif", price: "1,100,000 MXN", name: "Modelo destacado 3" },
 ];
 
-// ✅ Grupo/categoría principal (para tu catálogo por grupos)
+// ✅ Grupo/categoría principal (para navegar al catálogo por grupos)
 const GROUP_OPTIONS = [
   { id: "automotriz", label: "Automotriz" },
   { id: "marketplace", label: "Marketplace" },
@@ -33,6 +34,28 @@ function getLocalToken() {
   );
 }
 
+/** ✅ Unsplash: si viene una URL de página, la convertimos a URL directa de imagen */
+function normalizeImageUrl(url) {
+  const u = String(url || "").trim();
+  if (!u) return "";
+
+  // Caso: https://unsplash.com/es/fotos/<slug>-<ID>
+  if (u.includes("unsplash.com/") && u.includes("/fotos/")) {
+    const last = u.split("/fotos/")[1] || "";
+    const id = (last.split("?")[0] || "").split("-").pop(); // ID al final
+    if (id) return `https://source.unsplash.com/${id}/1200x900`;
+  }
+
+  // Caso: https://unsplash.com/photos/<ID>
+  if (u.includes("unsplash.com/") && u.includes("/photos/")) {
+    const id = (u.split("/photos/")[1] || "").split("?")[0].split("/")[0];
+    if (id) return `https://source.unsplash.com/${id}/1200x900`;
+  }
+
+  // ya es URL directa
+  return u;
+}
+
 export default function Landing() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -49,7 +72,7 @@ export default function Landing() {
   const [me, setMe] = useState(null);
   const [isAuthed, setIsAuthed] = useState(Boolean(getLocalToken()));
 
-  // preview público
+  // preview público (GLOBAL)
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -70,28 +93,19 @@ export default function Landing() {
     setErr("");
     setLoading(true);
     try {
-      // ✅ NUEVO: publicaciones por grupo (endpoint público)
-      const data = await api.publicar.listPublic({ group, limit: 12 });
+      // ✅ IMPORTANTE: LANDING = VISTA GLOBAL (NO manda group)
+      // endpoint: GET /publicar -> devuelve solo status='aprobado'
+      const resp = await api.publicar.listPublic({ limit: 24 }); // sin group
 
-      const list = Array.isArray(data) ? data : data?.items || [];
+      // tu backend regresa { ok:true, data:[...] }
+      const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
 
-      // cada row es: { id, group_id, data, user_id, created_at }
-      // y los campos reales viven en row.data
       const mapped = list.map((row) => {
         const p = row?.data && typeof row.data === "object" ? row.data : {};
-        return {
-          ...row,
-          _data: p, // guardamos referencia cómoda
-        };
+        return { ...row, _data: p };
       });
 
-      // ✅ Si manejas "estado" dentro de data, filtra ahí
-      // Si no existe, por defecto "disponible"
-      const publicList = mapped.filter(
-        (row) => ((row?._data?.estado ?? "disponible") === "disponible")
-      );
-
-      setItems(publicList);
+      setItems(mapped);
     } catch (e) {
       setErr(e?.message || "No se pudieron cargar publicaciones");
       setItems([]);
@@ -106,33 +120,31 @@ export default function Landing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ si cambia el grupo en la URL, recarga preview
-  useEffect(() => {
-    loadPublic();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group]);
-
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return items.slice(0, 6);
+    const base = items;
 
-    return items
+    if (!s) return base.slice(0, 6);
+
+    return base
       .filter((row) => {
         const p = row._data || {};
-        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${p.modelo || ""} ${p.nombre || ""}`;
+        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${p.modelo || ""} ${
+          p.nombre || ""
+        } ${row.group_id || ""}`;
         return haystack.toLowerCase().includes(s);
       })
       .slice(0, 6);
   }, [items, q]);
 
   function goCatalogo() {
+    // ✅ El catálogo sí es por grupo (el que traes en URL o default)
     nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
-  // ✅ Publicar: ir al selector de categorías
   function goPublicar() {
     if (!getLocalToken()) return nav("/login");
-    nav("/publicar");
+    nav("/publicar"); // selector de categorías/formulario
   }
 
   function goInventario() {
@@ -168,10 +180,18 @@ export default function Landing() {
                 </>
               ) : (
                 <>
-                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/login")}>
+                  <button
+                    className="lp-btn lp-btn-ghost"
+                    type="button"
+                    onClick={() => nav("/login")}
+                  >
                     Iniciar sesión
                   </button>
-                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/register")}>
+                  <button
+                    className="lp-btn lp-btn-ghost"
+                    type="button"
+                    onClick={() => nav("/register")}
+                  >
                     Crear cuenta
                   </button>
                 </>
@@ -197,13 +217,18 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* PREVIEW PÚBLICO */}
+        {/* PREVIEW PÚBLICO GLOBAL */}
         <section className="lp-section" id="market">
           <div className="lp-section-head">
             <h2>Publicaciones disponibles</h2>
 
             <div className="lp-market-actions">
-              <button className="lp-btn lp-btn-ghost" type="button" onClick={loadPublic} disabled={loading}>
+              <button
+                className="lp-btn lp-btn-ghost"
+                type="button"
+                onClick={loadPublic}
+                disabled={loading}
+              >
                 ↻ Recargar
               </button>
 
@@ -216,7 +241,11 @@ export default function Landing() {
                   + Publicar
                 </button>
               ) : (
-                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
+                <button
+                  className="lp-btn lp-btn-primary"
+                  type="button"
+                  onClick={() => nav("/register")}
+                >
                   Publicar (crear cuenta)
                 </button>
               )}
@@ -258,7 +287,11 @@ export default function Landing() {
                   Publicar la primera
                 </button>
               ) : (
-                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
+                <button
+                  className="lp-btn lp-btn-primary"
+                  type="button"
+                  onClick={() => nav("/register")}
+                >
                   Crear cuenta
                 </button>
               )}
@@ -268,14 +301,16 @@ export default function Landing() {
               {filtered.map((row) => {
                 const p = row._data || {};
 
-                const imgSrc = p?.foto_url || p?.imagenes?.[0] || "";
+                const rawImg = p?.foto_url || p?.imagenes?.[0] || "";
+                const imgSrc = normalizeImageUrl(rawImg);
+
                 const title = p?.titulo || p?.nombre || "Publicación";
                 const desc = p?.descripcion || "Sin descripción.";
-                const estado = p?.estado || "disponible";
 
-                // intentamos mostrar "precio" si existe
                 const precio =
-                  p?.precio == null ? null : Number(p.precio);
+                  p?.precio == null || p?.precio === ""
+                    ? null
+                    : Number(String(p.precio).replace(/[^\d.]/g, ""));
 
                 return (
                   <article className="lp-card" key={row.id}>
@@ -304,24 +339,16 @@ export default function Landing() {
                     <div className="lp-card-body">
                       <div className="lp-card-head">
                         <div>
-                          <div className="lp-card-title">
-                            {title}
-                          </div>
+                          <div className="lp-card-title">{title}</div>
 
                           <div className="lp-card-meta">
-                            <span>{p?.anio ?? p?.año ?? "—"}</span>
+                            <span>{row.group_id || "—"}</span>
                             <span className="lp-dot" />
                             <span>
-                              {precio == null ? "—" : `$${precio.toLocaleString("es-MX")}`}
+                              {precio == null ? "—" : `$${precio.toLocaleString("es-MX")} MXN`}
                             </span>
                           </div>
                         </div>
-
-                        {estado && (
-                          <span className={`lp-badge lp-badge-${estado}`}>
-                            {estado}
-                          </span>
-                        )}
                       </div>
 
                       <p className="lp-desc">{desc}</p>
