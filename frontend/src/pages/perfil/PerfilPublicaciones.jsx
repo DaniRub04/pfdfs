@@ -30,6 +30,7 @@ function Field({ field, value, onChange }) {
   };
 
   if (field.type === "textarea") return <textarea rows={4} {...common} />;
+
   if (field.type === "select") {
     return (
       <select {...common}>
@@ -42,6 +43,7 @@ function Field({ field, value, onChange }) {
       </select>
     );
   }
+
   return <input type={field.type || "text"} {...common} />;
 }
 
@@ -59,9 +61,9 @@ export default function PerfilPublicaciones() {
     setErr("");
     setLoading(true);
     try {
-      const data = await api.publicar.myList({ limit: 200 });
-      const list = Array.isArray(data) ? data : data?.items || [];
-      setItems(list);
+      // ✅ Con api.js actualizado, esto regresa directamente el array
+      const list = await api.publicar.myList({ limit: 200 });
+      setItems(Array.isArray(list) ? list : []);
     } catch (e) {
       setErr(e?.message || "Error al cargar tus publicaciones");
       setItems([]);
@@ -127,7 +129,14 @@ export default function PerfilPublicaciones() {
 
   return (
     <>
-      <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", mb: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          mb: 2,
+        }}
+      >
         <Typography sx={{ fontWeight: 900 }}>Mis publicaciones</Typography>
         <Button variant="outlined" onClick={load} disabled={loading}>
           Recargar
@@ -162,7 +171,11 @@ export default function PerfilPublicaciones() {
                     label={estado}
                     size="small"
                     color={
-                      estado === "aprobado" ? "success" : estado === "rechazado" ? "error" : "warning"
+                      estado === "aprobado"
+                        ? "success"
+                        : estado === "rechazado"
+                        ? "error"
+                        : "warning"
                     }
                   />
                 </Box>
@@ -184,7 +197,7 @@ export default function PerfilPublicaciones() {
                     Eliminar
                   </Button>
 
-                  {/* ⚠️ Si luego metes rol admin, mueve esto a un panel admin */}
+                  {/* ⚠️ Estos botones cambian status. Idealmente muévelos a panel Admin. */}
                   <Button variant="outlined" onClick={() => changeStatus(row, "pendiente")}>
                     Pendiente
                   </Button>
@@ -220,7 +233,11 @@ export default function PerfilPublicaciones() {
                     <Typography sx={{ fontWeight: 800, mb: 0.5 }}>
                       {f.label} {f.required ? "*" : ""}
                     </Typography>
-                    <Field field={f} value={editForm[f.name]} onChange={(v) => setField(f.name, v)} />
+                    <Field
+                      field={f}
+                      value={editForm[f.name]}
+                      onChange={(v) => setField(f.name, v)}
+                    />
                   </Box>
                 ))}
               </Box>
@@ -240,4 +257,3 @@ export default function PerfilPublicaciones() {
     </>
   );
 }
-

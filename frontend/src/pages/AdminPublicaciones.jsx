@@ -51,6 +51,7 @@ export default function AdminPublicaciones() {
 
   async function loadStats() {
     try {
+      // ✅ Con api.js actualizado, adminList YA regresa directo { total, rows }
       const [p, a, r] = await Promise.all([
         api.publicar.adminList({ status: "pendiente", limit: 1, offset: 0 }),
         api.publicar.adminList({ status: "aprobado", limit: 1, offset: 0 }),
@@ -58,9 +59,9 @@ export default function AdminPublicaciones() {
       ]);
 
       setStats({
-        pendiente: p?.data?.total ?? 0,
-        aprobado: a?.data?.total ?? 0,
-        rechazado: r?.data?.total ?? 0,
+        pendiente: p?.total ?? 0,
+        aprobado: a?.total ?? 0,
+        rechazado: r?.total ?? 0,
       });
     } catch {
       // si falla, no truena el panel
@@ -72,6 +73,7 @@ export default function AdminPublicaciones() {
     setErr("");
     setLoading(true);
     try {
+      // ✅ resp = { total, rows } (ya NO viene { ok, data })
       const resp = await api.publicar.adminList({
         status,
         group: group || undefined,
@@ -79,10 +81,8 @@ export default function AdminPublicaciones() {
         offset: page * pageSize,
       });
 
-      // resp: { ok: true, data: { total, rows } }
-      const payload = resp?.data || resp;
-      const total = payload.total ?? 0;
-      const list = payload.rows ?? [];
+      const total = resp?.total ?? 0;
+      const list = Array.isArray(resp?.rows) ? resp.rows : [];
 
       // filtro local por texto sobre data (sobre la página actual)
       const filtered = !q.trim()
@@ -350,3 +350,4 @@ export default function AdminPublicaciones() {
     </Box>
   );
 }
+

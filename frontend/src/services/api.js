@@ -1,3 +1,5 @@
+// frontend/src/services/api.js
+
 /* =======================
    Config
 ======================= */
@@ -115,6 +117,13 @@ async function request(path, options = {}) {
     throw err;
   }
 
+  // ✅ Normaliza respuestas { ok, data }
+  // - backend suele responder { ok:true, data: [...] } o { ok:true, data: {...} }
+  // - así el frontend recibe directo el array/objeto esperado.
+  if (data && typeof data === "object" && "ok" in data && "data" in data) {
+    return data.data;
+  }
+
   return data;
 }
 
@@ -140,6 +149,7 @@ const api = {
       body: JSON.stringify(payload),
     });
 
+    // aquí request() NO altera el shape porque login no regresa {ok,data}
     const token = data?.token;
     if (!token) throw new Error("Login exitoso pero no se recibió token");
 
