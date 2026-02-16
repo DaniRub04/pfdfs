@@ -38,19 +38,26 @@ function statusChip(status) {
  * - rows: [] (directo)
  */
 function normalizeAdminListResponse(resp) {
-  // directo array
   if (Array.isArray(resp)) {
     return { total: resp.length, rows: resp };
   }
 
-  // { ok, data }
-  const maybeData = resp?.data ?? resp?.data?.data ?? resp?.data?.rows; // por si viene raro
-  const payload = resp?.rows ? resp : (resp?.data && typeof resp.data === "object" ? resp.data : maybeData);
+  // Tu api.request normaliza { ok, data } => normalmente resp ya es { total, rows }
+  // pero dejamos tolerancia por si llega algo diferente.
+  const payload =
+    resp?.rows
+      ? resp
+      : resp?.data && typeof resp.data === "object"
+        ? resp.data
+        : resp?.data?.data;
 
-  // si payload ya es { total, rows }
   if (payload && typeof payload === "object") {
     const total = payload.total ?? payload.count ?? 0;
-    const rows = Array.isArray(payload.rows) ? payload.rows : Array.isArray(payload.items) ? payload.items : [];
+    const rows = Array.isArray(payload.rows)
+      ? payload.rows
+      : Array.isArray(payload.items)
+        ? payload.items
+        : [];
     return { total: Number(total) || 0, rows };
   }
 
@@ -68,12 +75,12 @@ export default function AdminPublicaciones() {
   const [pageSize, setPageSize] = useState(10);
 
   // data
-  const [rowsRaw, setRowsRaw] = useState([]); // rows del server (sin filtro local)
-  const [rowCount, setRowCount] = useState(0); // total del server (sin filtro local)
+  const [rowsRaw, setRowsRaw] = useState([]);
+  const [rowCount, setRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // ✅ métricas
+  // métricas
   const [stats, setStats] = useState({ pendiente: 0, aprobado: 0, rechazado: 0 });
 
   const loadStats = useCallback(async () => {
@@ -94,7 +101,6 @@ export default function AdminPublicaciones() {
         rechazado: R.total ?? 0,
       });
     } catch {
-      // si falla, no truena el panel
       setStats((s) => s);
     }
   }, []);
@@ -111,8 +117,8 @@ export default function AdminPublicaciones() {
       });
 
       const norm = normalizeAdminListResponse(resp);
-      setRowsRaw(norm.rows);
-      setRowCount(norm.total);
+      setRowsRaw(norm.rows || []);
+      setRowCount(norm.total || 0);
     } catch (e) {
       setErr(e?.message || "No se pudo cargar moderación");
       setRowsRaw([]);
@@ -138,13 +144,13 @@ export default function AdminPublicaciones() {
     }
   }
 
-  // ✅ filtro local instantáneo (no afecta rowCount/paginación)
+  // filtro local instantáneo
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return rowsRaw;
 
     return rowsRaw.filter((r) => {
-      const d = r.data || {};
+      const d = r?.data || {};
       const text = `${d.titulo || ""} ${d.marca || ""} ${d.modelo || ""} ${d.descripcion || ""} ${
         d.empresa || ""
       } ${d.nombreEmpresa || ""}`.toLowerCase();
@@ -239,7 +245,6 @@ export default function AdminPublicaciones() {
         },
       },
     ],
-    // changeStatus usa load/loadStats que ya están estables por useCallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -250,7 +255,7 @@ export default function AdminPublicaciones() {
         Admin Panel — Moderación de publicaciones
       </Typography>
 
-      {/* ✅ métricas */}
+      {/* métricas */}
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <Paper sx={{ p: 2, borderRadius: 3, flex: 1, minWidth: 220 }}>
           <Typography sx={{ fontWeight: 900 }}>Pendientes</Typography>
@@ -355,7 +360,8 @@ export default function AdminPublicaciones() {
           </Typography>
         )}
 
-        <Box sx={{ height: 560 }}>
+        {/* ✅ Altura segura + estilos inline (sin importar grid.css) */}
+        <Box sx={{ height: "70vh", minHeight: 560, width: "100%" }}>
           <DataGrid
             rows={rows}
             columns={columns}
@@ -370,6 +376,37 @@ export default function AdminPublicaciones() {
             }}
             pageSizeOptions={[10, 20, 50]}
             disableRowSelectionOnClick
+            sx={{
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.9)",
+
+              "& .MuiDataGrid-columnHeaders": {
+                bgcolor: "rgba(255,255,255,0.05)",
+                borderBottom: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.92)",
+                fontWeight: 900,
+              },
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontWeight: 900,
+              },
+              "& .MuiDataGrid-cell": {
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.9)",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid rgba(255,255,255,0.12)",
+                bgcolor: "rgba(255,255,255,0.03)",
+                color: "rgba(255,255,255,0.85)",
+              },
+              "& .MuiTablePagination-root": {
+                color: "rgba(255,255,255,0.85)",
+              },
+              "& .MuiDataGrid-iconSeparator": {
+                opacity: 0.4,
+              },
+            }}
           />
         </Box>
 
