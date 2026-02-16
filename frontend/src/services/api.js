@@ -118,8 +118,6 @@ async function request(path, options = {}) {
   }
 
   // ✅ Normaliza respuestas { ok, data }
-  // - backend suele responder { ok:true, data: [...] } o { ok:true, data: {...} }
-  // - así el frontend recibe directo el array/objeto esperado.
   if (data && typeof data === "object" && "ok" in data && "data" in data) {
     return data.data;
   }
@@ -131,6 +129,12 @@ async function request(path, options = {}) {
    API pública
 ======================= */
 const api = {
+  /* Helpers (para que AppShell use api.getToken()) */
+  getToken,
+  setToken,
+  clearToken,
+  isLoggedIn,
+
   health: () => request("/health"),
 
   /* ---------- AUTH ---------- */
@@ -149,7 +153,7 @@ const api = {
       body: JSON.stringify(payload),
     });
 
-    // aquí request() NO altera el shape porque login no regresa {ok,data}
+    // login normalmente regresa { token, user? }
     const token = data?.token;
     if (!token) throw new Error("Login exitoso pero no se recibió token");
 
@@ -241,15 +245,6 @@ const api = {
       requireAuth();
       return request(`/publicar/${id}`, {
         method: "DELETE",
-      });
-    },
-
-    // 🔒 CAMBIAR STATUS (owner) (si lo mantienes)
-    setStatus: (id, status) => {
-      requireAuth();
-      return request(`/publicar/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
       });
     },
 

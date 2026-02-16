@@ -1,5 +1,5 @@
 // frontend/src/pages/AdminPublicaciones.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Box,
   Button,
@@ -30,6 +30,33 @@ function statusChip(status) {
   return <Chip label="PENDIENTE" color="warning" size="small" />;
 }
 
+/**
+ * Normaliza cualquier forma posible del backend:
+ * - { total, rows }
+ * - { ok:true, data:{ total, rows } }
+ * - { data:{ total, rows } }
+ * - rows: [] (directo)
+ */
+function normalizeAdminListResponse(resp) {
+  // directo array
+  if (Array.isArray(resp)) {
+    return { total: resp.length, rows: resp };
+  }
+
+  // { ok, data }
+  const maybeData = resp?.data ?? resp?.data?.data ?? resp?.data?.rows; // por si viene raro
+  const payload = resp?.rows ? resp : (resp?.data && typeof resp.data === "object" ? resp.data : maybeData);
+
+  // si payload ya es { total, rows }
+  if (payload && typeof payload === "object") {
+    const total = payload.total ?? payload.count ?? 0;
+    const rows = Array.isArray(payload.rows) ? payload.rows : Array.isArray(payload.items) ? payload.items : [];
+    return { total: Number(total) || 0, rows };
+  }
+
+  return { total: 0, rows: [] };
+}
+
 export default function AdminPublicaciones() {
   // filtros
   const [status, setStatus] = useState("pendiente");
@@ -41,39 +68,41 @@ export default function AdminPublicaciones() {
   const [pageSize, setPageSize] = useState(10);
 
   // data
-  const [rows, setRows] = useState([]);
-  const [rowCount, setRowCount] = useState(0);
+  const [rowsRaw, setRowsRaw] = useState([]); // rows del server (sin filtro local)
+  const [rowCount, setRowCount] = useState(0); // total del server (sin filtro local)
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   // ✅ métricas
   const [stats, setStats] = useState({ pendiente: 0, aprobado: 0, rechazado: 0 });
 
-  async function loadStats() {
+  const loadStats = useCallback(async () => {
     try {
-      // ✅ Con api.js actualizado, adminList YA regresa directo { total, rows }
       const [p, a, r] = await Promise.all([
         api.publicar.adminList({ status: "pendiente", limit: 1, offset: 0 }),
         api.publicar.adminList({ status: "aprobado", limit: 1, offset: 0 }),
         api.publicar.adminList({ status: "rechazado", limit: 1, offset: 0 }),
       ]);
 
+      const P = normalizeAdminListResponse(p);
+      const A = normalizeAdminListResponse(a);
+      const R = normalizeAdminListResponse(r);
+
       setStats({
-        pendiente: p?.total ?? 0,
-        aprobado: a?.total ?? 0,
-        rechazado: r?.total ?? 0,
+        pendiente: P.total ?? 0,
+        aprobado: A.total ?? 0,
+        rechazado: R.total ?? 0,
       });
     } catch {
       // si falla, no truena el panel
       setStats((s) => s);
     }
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async () => {
     setErr("");
     setLoading(true);
     try {
-      // ✅ resp = { total, rows } (ya NO viene { ok, data })
       const resp = await api.publicar.adminList({
         status,
         group: group || undefined,
@@ -81,36 +110,22 @@ export default function AdminPublicaciones() {
         offset: page * pageSize,
       });
 
-      const total = resp?.total ?? 0;
-      const list = Array.isArray(resp?.rows) ? resp.rows : [];
-
-      // filtro local por texto sobre data (sobre la página actual)
-      const filtered = !q.trim()
-        ? list
-        : list.filter((r) => {
-            const d = r.data || {};
-            const text = `${d.titulo || ""} ${d.marca || ""} ${d.modelo || ""} ${d.descripcion || ""} ${
-              d.empresa || ""
-            } ${d.nombreEmpresa || ""}`.toLowerCase();
-            return text.includes(q.trim().toLowerCase());
-          });
-
-      setRows(filtered);
-      setRowCount(total);
+      const norm = normalizeAdminListResponse(resp);
+      setRowsRaw(norm.rows);
+      setRowCount(norm.total);
     } catch (e) {
       setErr(e?.message || "No se pudo cargar moderación");
-      setRows([]);
+      setRowsRaw([]);
       setRowCount(0);
     } finally {
       setLoading(false);
     }
-  }
+  }, [status, group, page, pageSize]);
 
   useEffect(() => {
     load();
     loadStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, group, page, pageSize]);
+  }, [load, loadStats]);
 
   async function changeStatus(id, nextStatus) {
     try {
@@ -122,6 +137,20 @@ export default function AdminPublicaciones() {
       alert(e?.message || "No se pudo cambiar el estado");
     }
   }
+
+  // ✅ filtro local instantáneo (no afecta rowCount/paginación)
+  const rows = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return rowsRaw;
+
+    return rowsRaw.filter((r) => {
+      const d = r.data || {};
+      const text = `${d.titulo || ""} ${d.marca || ""} ${d.modelo || ""} ${d.descripcion || ""} ${
+        d.empresa || ""
+      } ${d.nombreEmpresa || ""}`.toLowerCase();
+      return text.includes(term);
+    });
+  }, [rowsRaw, q]);
 
   const columns = useMemo(
     () => [
@@ -210,6 +239,7 @@ export default function AdminPublicaciones() {
         },
       },
     ],
+    // changeStatus usa load/loadStats que ya están estables por useCallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -279,7 +309,7 @@ export default function AdminPublicaciones() {
               <MenuItem value="">Todas</MenuItem>
               {(GROUPS || []).map((g) => (
                 <MenuItem key={g.id} value={g.id}>
-                  {g.title}
+                  {g.title ?? g.label ?? g.name ?? g.id}
                 </MenuItem>
               ))}
             </Select>
@@ -350,4 +380,3 @@ export default function AdminPublicaciones() {
     </Box>
   );
 }
-

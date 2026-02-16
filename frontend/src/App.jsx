@@ -37,7 +37,6 @@ export default function App() {
     <Routes>
       {/* ✅ Layout base para todo el sitio */}
       <Route element={<AppShell />}>
-
         {/* ================= PUBLICAS ================= */}
         <Route path="/" element={<Landing />} />
         <Route path="/catalogo" element={<Catalogo />} />
@@ -59,7 +58,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/publicar/:group"
           element={
@@ -97,7 +95,6 @@ export default function App() {
 
         {/* ================= 404 GLOBAL ================= */}
         <Route path="*" element={<Navigate to="/" replace />} />
-
       </Route>
     </Routes>
   );

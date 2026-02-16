@@ -42,22 +42,37 @@ export default function AppShell() {
   const [me, setMe] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
 
+  // Re-cargar /me cuando cambia el token (login/logout)
   useEffect(() => {
     (async () => {
+      if (!isAuthed) {
+        setMe(null);
+        setPendingCount(0);
+        return;
+      }
+
       try {
         const data = await api.me();
         setMe(data || null);
       } catch {
         setMe(null);
+        setPendingCount(0);
       }
     })();
-  }, []);
+  }, [isAuthed, token]);
 
+  // Contador de pendientes solo para admin
   useEffect(() => {
     if (me?.role === "admin") {
       api.publicar
         .adminList({ status: "pendiente", limit: 1, offset: 0 })
-        .then((r) => setPendingCount(r?.data?.total ?? 0))
+        .then((r) => {
+          // Soporta ambos formatos:
+          // 1) r.total
+          // 2) r.data.total (si tu helper devuelve axios response)
+          const total = (r?.total ?? r?.data?.total ?? 0);
+          setPendingCount(Number(total) || 0);
+        })
         .catch(() => setPendingCount(0));
     } else {
       setPendingCount(0);
@@ -71,6 +86,7 @@ export default function AppShell() {
 
   const goPublish = () => nav("/publicar");
   const goPerfil = () => nav("/perfil");
+  const goAdmin = () => nav("/admin/publicaciones");
 
   // ✅ Selector inteligente: si estás en /publicar... cambia a /publicar/:group, si no, a /catalogo
   const onGroupChange = (nextGroup) => {
@@ -109,8 +125,6 @@ export default function AppShell() {
     setDrawerOpen(false);
     fn?.();
   };
-
-  const goAdmin = () => nav("/admin/publicaciones");
 
   return (
     <Box sx={{ minHeight: "100vh" }}>
@@ -368,7 +382,8 @@ export default function AppShell() {
                     borderColor: "rgba(255,255,255,0.14)",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(255,255,255,0.22)" },
+                    borderColor: "rgba(255,255,255,0.22)",
+                  },
                   "& .MuiSvgIcon-root": { color: "rgba(255,255,255,.85)" },
                 }}
               >
