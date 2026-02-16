@@ -38,12 +38,8 @@ function statusChip(status) {
  * - rows: [] (directo)
  */
 function normalizeAdminListResponse(resp) {
-  if (Array.isArray(resp)) {
-    return { total: resp.length, rows: resp };
-  }
+  if (Array.isArray(resp)) return { total: resp.length, rows: resp };
 
-  // Tu api.request normaliza { ok, data } => normalmente resp ya es { total, rows }
-  // pero dejamos tolerancia por si llega algo diferente.
   const payload =
     resp?.rows
       ? resp
@@ -381,12 +377,10 @@ export default function AdminPublicaciones() {
               borderRadius: 2,
               bgcolor: "rgba(255,255,255,0.03)",
               color: "rgba(255,255,255,0.9)",
-
               "& .MuiDataGrid-columnHeaders": {
                 bgcolor: "rgba(255,255,255,0.05)",
                 borderBottom: "1px solid rgba(255,255,255,0.12)",
                 color: "rgba(255,255,255,0.92)",
-                fontWeight: 900,
               },
               "& .MuiDataGrid-columnHeaderTitle": {
                 fontWeight: 900,
