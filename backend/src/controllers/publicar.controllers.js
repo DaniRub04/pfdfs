@@ -5,7 +5,6 @@ import {
   listMyPublications,
   updateMyPublication,
   deleteMyPublication,
-  setPublicationStatus,
 } from "../services/publicar.service.js";
 
 const VALID_GROUPS = new Set([
@@ -183,37 +182,6 @@ export async function eliminarMiPublicacion(req, res, next) {
     return res.json({ ok: true, data: { id: deleted.id } });
   } catch (err) {
     console.error("ELIMINAR MI PUBLICACION ERROR:", err);
-    return next(err);
-  }
-}
-
-/**
- * PATCH /publicar/:id/status
- * Privado: cambiar status (pendiente/aprobado/rechazado)
- * Body: { status: "pendiente" | "aprobado" | "rechazado" }
- *
- * ⚠️ Idealmente admin; por ahora dueño
- */
-export async function cambiarStatus(req, res, next) {
-  try {
-    const userId = req.user?.id ?? null;
-    const id = req.params.id;
-
-    const status = normalizeGroup(req.body?.status || ""); // normalize a lower/trim
-
-    const allowed = new Set(["pendiente", "aprobado", "rechazado"]);
-    if (!allowed.has(status)) {
-      return res.status(400).json({ ok: false, message: "status inválido" });
-    }
-
-    const updated = await setPublicationStatus({ id, userId, status });
-    if (!updated) {
-      return res.status(404).json({ ok: false, message: "No encontrada o sin permisos" });
-    }
-
-    return res.json({ ok: true, data: updated });
-  } catch (err) {
-    console.error("CAMBIAR STATUS ERROR:", err);
     return next(err);
   }
 }

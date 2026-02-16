@@ -1,4 +1,3 @@
-// backend/src/routes/publicar.routes.js
 import { Router } from "express";
 
 import {
@@ -7,7 +6,6 @@ import {
   listarMisPublicaciones,
   editarMiPublicacion,
   eliminarMiPublicacion,
-  cambiarStatus,
 } from "../controllers/publicar.controllers.js";
 
 import {
@@ -37,13 +35,13 @@ router.get("/", listarPublicaciones);
 
 /**
  * GET /publicar/mias
- * Privado - Lista mis publicaciones (todas)
+ * Privado - Lista mis publicaciones (pendiente/aprobado/rechazado)
  */
 router.get("/mias", auth, listarMisPublicaciones);
 
 /**
  * POST /publicar
- * Privado - Crear publicación (pendiente por defecto)
+ * Privado - Crear publicación (queda en pendiente)
  */
 router.post("/", auth, publicar);
 
@@ -60,10 +58,12 @@ router.put("/:id", auth, editarMiPublicacion);
 router.delete("/:id", auth, eliminarMiPublicacion);
 
 /**
+ * ⚠️ IMPORTANTE:
+ * Eliminamos el endpoint:
  * PATCH /publicar/:id/status
- * Privado - Cambiar status (owner o admin si lo mantienes)
+ *
+ * Porque ahora SOLO admin puede cambiar estados.
  */
-router.patch("/:id/status", auth, cambiarStatus);
 
 
 /* ===================================================
@@ -83,6 +83,5 @@ router.get("/admin", auth, isAdmin, adminList);
  * Admin - Cambiar status (aprobado / rechazado / pendiente)
  */
 router.patch("/admin/:id/status", auth, isAdmin, adminChangeStatus);
-
 
 export default router;

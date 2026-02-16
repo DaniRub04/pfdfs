@@ -11,8 +11,24 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { api } from "../../services/api";
+import { api, getToken } from "../../services/api";
 import { getGroupConfig } from "../../config/catalogoConfig";
+
+function parseJwt(token) {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
 
 function Field({ field, value, onChange }) {
   const common = {
@@ -53,9 +69,14 @@ export default function PerfilPublicaciones() {
   const [err, setErr] = useState("");
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editing, setEditing] = useState(null); // row actual
+  const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ✅ Detecta role desde el JWT
+  const token = getToken();
+  const jwtUser = token ? parseJwt(token) : null;
+  const isAdmin = String(jwtUser?.role || "").toLowerCase() === "admin";
 
   async function load() {
     setErr("");
@@ -118,6 +139,7 @@ export default function PerfilPublicaciones() {
     }
   }
 
+  // ⚠️ Deja esto solo para admin (si lo quieres usar aquí)
   async function changeStatus(row, nextStatus) {
     try {
       await api.publicar.setStatus(row.id, nextStatus);
@@ -129,14 +151,7 @@ export default function PerfilPublicaciones() {
 
   return (
     <>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          mb: 2,
-        }}
-      >
+      <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", mb: 2 }}>
         <Typography sx={{ fontWeight: 900 }}>Mis publicaciones</Typography>
         <Button variant="outlined" onClick={load} disabled={loading}>
           Recargar
@@ -197,16 +212,20 @@ export default function PerfilPublicaciones() {
                     Eliminar
                   </Button>
 
-                  {/* ⚠️ Estos botones cambian status. Idealmente muévelos a panel Admin. */}
-                  <Button variant="outlined" onClick={() => changeStatus(row, "pendiente")}>
-                    Pendiente
-                  </Button>
-                  <Button variant="outlined" onClick={() => changeStatus(row, "aprobado")}>
-                    Aprobar
-                  </Button>
-                  <Button variant="outlined" onClick={() => changeStatus(row, "rechazado")}>
-                    Rechazar
-                  </Button>
+                  {/* ✅ SOLO ADMIN ve botones para cambiar status */}
+                  {isAdmin && (
+                    <>
+                      <Button variant="outlined" onClick={() => changeStatus(row, "pendiente")}>
+                        Pendiente
+                      </Button>
+                      <Button variant="outlined" onClick={() => changeStatus(row, "aprobado")}>
+                        Aprobar
+                      </Button>
+                      <Button variant="outlined" onClick={() => changeStatus(row, "rechazado")}>
+                        Rechazar
+                      </Button>
+                    </>
+                  )}
                 </Box>
               </Paper>
             );
@@ -233,11 +252,7 @@ export default function PerfilPublicaciones() {
                     <Typography sx={{ fontWeight: 800, mb: 0.5 }}>
                       {f.label} {f.required ? "*" : ""}
                     </Typography>
-                    <Field
-                      field={f}
-                      value={editForm[f.name]}
-                      onChange={(v) => setField(f.name, v)}
-                    />
+                    <Field field={f} value={editForm[f.name]} onChange={(v) => setField(f.name, v)} />
                   </Box>
                 ))}
               </Box>
