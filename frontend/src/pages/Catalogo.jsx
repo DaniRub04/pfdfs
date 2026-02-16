@@ -1,3 +1,4 @@
+// frontend/src/pages/Catalogo.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -16,10 +17,18 @@ import {
 
 import { api } from "../services/api";
 import { GROUPS } from "../config/catalogoConfig";
+import PublicationCard from "../components/PublicationCard";
+import "../styles/publicationCards.css";
 
 function normalizeGroup(groupId, fallback = "automotriz") {
   const ok = GROUPS.some((g) => g.id === groupId);
   return ok ? groupId : fallback;
+}
+
+function toNumberOrNull(v) {
+  if (v == null) return null;
+  const n = Number(String(v).replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : null;
 }
 
 export default function Catalogo() {
@@ -40,70 +49,77 @@ export default function Catalogo() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // ✅ cargar lista pública por grupo desde /publicar
+  async function load() {
+    setErr("");
+    setLoading(true);
+    try {
+      // ✅ Catálogo sí es por grupo
+      const resp = await api.publicar.listPublic({ group, limit: 200 });
+
+      // backend: { ok:true, data:[...] }
+      const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
+
+      const mapped = list.map((row) => ({
+        ...row,
+        _data: row?.data && typeof row.data === "object" ? row.data : {},
+      }));
+
+      setItems(mapped);
+    } catch (e) {
+      setErr(e?.message || "No se pudieron cargar publicaciones");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ✅ cargar lista pública por grupo
   useEffect(() => {
-    (async () => {
-      setErr("");
-      setLoading(true);
-      try {
-        const data = await api.publicar.listPublic({ group, limit: 100 });
-        const list = Array.isArray(data) ? data : data?.items || [];
-
-        // Cada row: { id, group_id, data, user_id, created_at }
-        const mapped = list.map((row) => {
-          const p = row?.data && typeof row.data === "object" ? row.data : {};
-          return {
-            id: row.id,
-            group_id: row.group_id,
-            created_at: row.created_at,
-            _data: p,
-          };
-        });
-
-        // Estado normalmente vive dentro del JSON (data)
-        const publicList = mapped.filter(
-          (row) => ((row?._data?.estado ?? "disponible") === "disponible")
-        );
-
-        setItems(publicList);
-      } catch (e) {
-        setErr(e?.message || "No se pudieron cargar publicaciones");
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group]);
 
   // ✅ filtro/orden local (simple)
   const filtered = useMemo(() => {
     let list = [...items];
 
-    // búsqueda (dentro de data)
+    // búsqueda (sobre data + group_id)
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       list = list.filter((row) => {
         const p = row._data || {};
-        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${p.modelo || ""} ${p.nombre || ""}`;
+        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${
+          p.modelo || ""
+        } ${p.nombre || ""} ${row.group_id || ""}`;
         return haystack.toLowerCase().includes(s);
       });
     }
 
     // precio (dentro de data)
-    const minN = min ? Number(min) : null;
-    const maxN = max ? Number(max) : null;
+    const minN = min ? toNumberOrNull(min) : null;
+    const maxN = max ? toNumberOrNull(max) : null;
 
-    if (minN != null && !Number.isNaN(minN)) {
-      list = list.filter((row) => Number(row?._data?.precio ?? 0) >= minN);
+    if (minN != null) {
+      list = list.filter((row) => {
+        const price = toNumberOrNull(row?._data?.precio) ?? 0;
+        return price >= minN;
+      });
     }
-    if (maxN != null && !Number.isNaN(maxN)) {
-      list = list.filter((row) => Number(row?._data?.precio ?? 0) <= maxN);
+    if (maxN != null) {
+      list = list.filter((row) => {
+        const price = toNumberOrNull(row?._data?.precio) ?? 0;
+        return price <= maxN;
+      });
     }
 
     // orden
-    if (order === "menor") list.sort((a, b) => (a._data?.precio ?? 0) - (b._data?.precio ?? 0));
-    if (order === "mayor") list.sort((a, b) => (b._data?.precio ?? 0) - (a._data?.precio ?? 0));
-    // "recientes": backend ya ordena por created_at desc, pero mantenemos tal cual
+    if (order === "menor") {
+      list.sort((a, b) => (toNumberOrNull(a._data?.precio) ?? 0) - (toNumberOrNull(b._data?.precio) ?? 0));
+    }
+    if (order === "mayor") {
+      list.sort((a, b) => (toNumberOrNull(b._data?.precio) ?? 0) - (toNumberOrNull(a._data?.precio) ?? 0));
+    }
+    // "recientes": backend ya ordena por created_at desc
 
     return list;
   }, [items, q, min, max, order]);
@@ -166,6 +182,10 @@ export default function Catalogo() {
               ))}
             </Select>
           </FormControl>
+
+          <Button variant="outlined" onClick={load} disabled={loading}>
+            Recargar
+          </Button>
 
           <Button variant="outlined" onClick={clearFilters}>
             Limpiar
@@ -252,38 +272,9 @@ export default function Catalogo() {
                 gap: 2,
               }}
             >
-              {filtered.slice(0, 24).map((row) => {
-                const p = row._data || {};
-                const title = p.titulo || p.nombre || "Publicación";
-                const price =
-                  p.precio == null ? "—" : `$${Number(p.precio).toLocaleString("es-MX")} MXN`;
-                const img = p.foto_url || p.imagenes?.[0] || "";
-
-                return (
-                  <Paper key={row.id} sx={{ p: 0, borderRadius: 3, overflow: "hidden" }}>
-                    <Box
-                      sx={{
-                        height: 180,
-                        background:
-                          img
-                            ? `url(${img}) center/cover no-repeat`
-                            : "radial-gradient(600px 200px at 20% 20%, rgba(45,212,191,.18), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.35), rgba(255,255,255,.03))",
-                      }}
-                    />
-
-                    <Box sx={{ p: 2 }}>
-                      <Typography sx={{ fontWeight: 900 }}>{title}</Typography>
-                      <Typography sx={{ opacity: 0.8, mt: 0.5, fontSize: 13 }}>
-                        {p.anio ?? p.año ?? "—"} · {price}
-                      </Typography>
-
-                      <Typography sx={{ opacity: 0.85, mt: 1, fontSize: 13 }}>
-                        {p.descripcion || "Sin descripción."}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                );
-              })}
+              {filtered.slice(0, 60).map((row) => (
+                <PublicationCard key={row.id} row={row} />
+              ))}
             </Box>
           )}
 

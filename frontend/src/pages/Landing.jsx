@@ -2,7 +2,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
+import PublicationCard from "../components/PublicationCard";
 import "../styles/landing.css";
+import "../styles/publicationCards.css";
 
 const DEMO_MODELS = [
   { id: "m1", img: "/landing/img/carro1.avif", price: "660,000 MXN", name: "Modelo destacado 1" },
@@ -10,7 +12,7 @@ const DEMO_MODELS = [
   { id: "m3", img: "/landing/img/carro3.avif", price: "1,100,000 MXN", name: "Modelo destacado 3" },
 ];
 
-// ✅ Grupo/categoría principal (para navegar al catálogo por grupos)
+// ✅ Grupo/categoría principal (para navegar)
 const GROUP_OPTIONS = [
   { id: "automotriz", label: "Automotriz" },
   { id: "marketplace", label: "Marketplace" },
@@ -32,28 +34,6 @@ function getLocalToken() {
     localStorage.getItem("auth_token") ||
     ""
   );
-}
-
-/** ✅ Unsplash: si viene una URL de página, la convertimos a URL directa de imagen */
-function normalizeImageUrl(url) {
-  const u = String(url || "").trim();
-  if (!u) return "";
-
-  // Caso: https://unsplash.com/es/fotos/<slug>-<ID>
-  if (u.includes("unsplash.com/") && u.includes("/fotos/")) {
-    const last = u.split("/fotos/")[1] || "";
-    const id = (last.split("?")[0] || "").split("-").pop(); // ID al final
-    if (id) return `https://source.unsplash.com/${id}/1200x900`;
-  }
-
-  // Caso: https://unsplash.com/photos/<ID>
-  if (u.includes("unsplash.com/") && u.includes("/photos/")) {
-    const id = (u.split("/photos/")[1] || "").split("?")[0].split("/")[0];
-    if (id) return `https://source.unsplash.com/${id}/1200x900`;
-  }
-
-  // ya es URL directa
-  return u;
 }
 
 export default function Landing() {
@@ -93,17 +73,17 @@ export default function Landing() {
     setErr("");
     setLoading(true);
     try {
-      // ✅ IMPORTANTE: LANDING = VISTA GLOBAL (NO manda group)
-      // endpoint: GET /publicar -> devuelve solo status='aprobado'
+      // ✅ LANDING = VISTA GLOBAL
+      // GET /publicar -> backend devuelve solo status='aprobado'
       const resp = await api.publicar.listPublic({ limit: 24 }); // sin group
 
-      // tu backend regresa { ok:true, data:[...] }
+      // backend: { ok:true, data:[...] }
       const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
 
-      const mapped = list.map((row) => {
-        const p = row?.data && typeof row.data === "object" ? row.data : {};
-        return { ...row, _data: p };
-      });
+      const mapped = list.map((row) => ({
+        ...row,
+        _data: row?.data && typeof row.data === "object" ? row.data : {},
+      }));
 
       setItems(mapped);
     } catch (e) {
@@ -129,27 +109,33 @@ export default function Landing() {
     return base
       .filter((row) => {
         const p = row._data || {};
-        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${p.modelo || ""} ${
-          p.nombre || ""
-        } ${row.group_id || ""}`;
+        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${
+          p.modelo || ""
+        } ${p.nombre || ""} ${row.group_id || ""}`;
         return haystack.toLowerCase().includes(s);
       })
       .slice(0, 6);
   }, [items, q]);
 
+  // ✅ NUEVAS RUTAS (catálogo por grupo)
   function goCatalogo() {
-    // ✅ El catálogo sí es por grupo (el que traes en URL o default)
     nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
+  // ✅ NUEVAS RUTAS (publicar dinámico por categoría)
   function goPublicar() {
     if (!getLocalToken()) return nav("/login");
-    nav("/publicar"); // selector de categorías/formulario
+    nav("/publicar"); // selector general
+  }
+  function goPublicarGroup(groupId = group) {
+    if (!getLocalToken()) return nav("/login");
+    nav(`/publicar/${encodeURIComponent(groupId)}`);
   }
 
+  // ✅ NUEVAS RUTAS (inventario)
   function goInventario() {
     if (!getLocalToken()) return nav("/login");
-    nav("/perfil/inventario");
+    nav("/inventario");
   }
 
   return (
@@ -174,17 +160,21 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goPublicar}>
                     Publicar
                   </button>
+                  <button
+                    className="lp-btn lp-btn-ghost"
+                    type="button"
+                    onClick={() => goPublicarGroup(group)}
+                    title={`Publicar en ${groupLabel}`}
+                  >
+                    Publicar en {groupLabel}
+                  </button>
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goInventario}>
                     Inventario
                   </button>
                 </>
               ) : (
                 <>
-                  <button
-                    className="lp-btn lp-btn-ghost"
-                    type="button"
-                    onClick={() => nav("/login")}
-                  >
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/login")}>
                     Iniciar sesión
                   </button>
                   <button
@@ -223,12 +213,7 @@ export default function Landing() {
             <h2>Publicaciones disponibles</h2>
 
             <div className="lp-market-actions">
-              <button
-                className="lp-btn lp-btn-ghost"
-                type="button"
-                onClick={loadPublic}
-                disabled={loading}
-              >
+              <button className="lp-btn lp-btn-ghost" type="button" onClick={loadPublic} disabled={loading}>
                 ↻ Recargar
               </button>
 
@@ -237,15 +222,16 @@ export default function Landing() {
               </button>
 
               {isAuthed ? (
-                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
-                  + Publicar
-                </button>
+                <>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                    + Publicar
+                  </button>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={() => goPublicarGroup(group)}>
+                    + Publicar en {groupLabel}
+                  </button>
+                </>
               ) : (
-                <button
-                  className="lp-btn lp-btn-primary"
-                  type="button"
-                  onClick={() => nav("/register")}
-                >
+                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Publicar (crear cuenta)
                 </button>
               )}
@@ -283,85 +269,29 @@ export default function Landing() {
             <div className="lp-empty">
               <p>No hay publicaciones disponibles todavía.</p>
               {isAuthed ? (
-                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
-                  Publicar la primera
-                </button>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                    Publicar la primera
+                  </button>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={() => goPublicarGroup(group)}>
+                    Publicar en {groupLabel}
+                  </button>
+                </div>
               ) : (
-                <button
-                  className="lp-btn lp-btn-primary"
-                  type="button"
-                  onClick={() => nav("/register")}
-                >
+                <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Crear cuenta
                 </button>
               )}
             </div>
           ) : (
             <div className="lp-cards">
-              {filtered.map((row) => {
-                const p = row._data || {};
-
-                const rawImg = p?.foto_url || p?.imagenes?.[0] || "";
-                const imgSrc = normalizeImageUrl(rawImg);
-
-                const title = p?.titulo || p?.nombre || "Publicación";
-                const desc = p?.descripcion || "Sin descripción.";
-
-                const precio =
-                  p?.precio == null || p?.precio === ""
-                    ? null
-                    : Number(String(p.precio).replace(/[^\d.]/g, ""));
-
-                return (
-                  <article className="lp-card" key={row.id}>
-                    <div className={`lp-card-img ${!imgSrc ? "lp-card-img--placeholder" : ""}`}>
-                      {imgSrc ? (
-                        <img
-                          src={imgSrc}
-                          alt={title}
-                          className="lp-card-img__img"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <>
-                          <div className="lp-card-img__brand">
-                            SELECTA<span>PLAZA</span>
-                          </div>
-                          <div className="lp-card-img__meta">
-                            <span>{title}</span>
-                            <span className="lp-dot" />
-                            <span>{row.group_id || "—"}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="lp-card-body">
-                      <div className="lp-card-head">
-                        <div>
-                          <div className="lp-card-title">{title}</div>
-
-                          <div className="lp-card-meta">
-                            <span>{row.group_id || "—"}</span>
-                            <span className="lp-dot" />
-                            <span>
-                              {precio == null ? "—" : `$${precio.toLocaleString("es-MX")} MXN`}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <p className="lp-desc">{desc}</p>
-
-                      <div className="lp-card-foot">
-                        <button className="lp-btn lp-btn-ghost" type="button" onClick={goCatalogo}>
-                          Ver en catálogo
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {filtered.map((row) => (
+                <PublicationCard
+                  key={row.id}
+                  row={row}
+                  onViewCatalog={() => nav(`/catalogo?group=${encodeURIComponent(row.group_id || group)}`)}
+                />
+              ))}
             </div>
           )}
         </section>
