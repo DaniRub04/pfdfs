@@ -6,6 +6,9 @@ import App from "./App.jsx";
 import { theme } from "./theme";
 import "./index.css";
 
+// ✅ IMPORTANTE: estilos base del DataGrid
+import "@mui/x-data-grid/styles/grid.css";
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
