@@ -122,6 +122,11 @@ async function request(path, options = {}) {
     return data.data;
   }
 
+  // ✅ Normaliza respuestas { ok, user } (perfil/me)
+  if (data && typeof data === "object" && "ok" in data && "user" in data) {
+    return data.user;
+  }
+
   return data;
 }
 
@@ -166,6 +171,7 @@ const api = {
   /* ---------- USER ---------- */
   me: async () => {
     if (!isLoggedIn()) return null;
+    // request() ya normaliza {ok,user} => regresa user directo
     return request("/profile/me");
   },
 
