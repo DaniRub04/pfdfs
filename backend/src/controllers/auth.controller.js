@@ -55,10 +55,11 @@ export const register = async (req, res, next) => {
 
     // crea user
     // ✅ IMPORTANTE: devolvemos instance_id como id (UUID)
+    // ✅ Incluimos role (si existe columna role; si no existe, no rompe porque no lo insertamos)
     const { rows } = await pool.query(
       `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires)
        VALUES ($1, $2, $3, false, $4, $5)
-       RETURNING instance_id AS id, nombre, email, verified`,
+       RETURNING instance_id AS id, nombre, email, verified, role`,
       [String(nombre).trim(), emailNorm, password_hash, verify_token, verify_expires]
     );
 
@@ -75,7 +76,7 @@ export const register = async (req, res, next) => {
     return res.status(201).json({
       ok: true,
       message: "Registro exitoso. Revisa tu correo para verificar tu cuenta.",
-      user: rows[0], // { id (uuid), nombre, email, verified }
+      user: rows[0], // { id (uuid), nombre, email, verified, role }
     });
   } catch (err) {
     next(err);
@@ -103,7 +104,7 @@ export const verifyEmail = async (req, res, next) => {
        WHERE verify_token = $1
          AND verify_expires > now()
          AND verified = false
-       RETURNING instance_id AS id, email, verified`,
+       RETURNING instance_id AS id, email, verified, role`,
       [String(token)]
     );
 
@@ -140,8 +141,9 @@ export const login = async (req, res, next) => {
     const emailNorm = normalizeEmail(email);
 
     // ✅ IMPORTANTE: usamos instance_id como id (UUID)
+    // ✅ Traemos role para meterlo al JWT (admin/user)
     const { rows } = await pool.query(
-      `SELECT instance_id AS id, nombre, email, password_hash, verified
+      `SELECT instance_id AS id, nombre, email, password_hash, verified, role
        FROM public.users
        WHERE email = $1`,
       [emailNorm]
@@ -176,15 +178,14 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const token = jwt.sign(
-      {
-        id: String(user.id), // 👈 UUID
-        email: user.email,
-        nombre: user.nombre,
-      },
-      env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    const payload = {
+      id: String(user.id), // 👈 UUID
+      email: user.email,
+      nombre: user.nombre,
+      role: user.role || "user", // ✅ CLAVE para AdminPanel
+    };
+
+    const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: "1d" });
 
     return res.json({
       ok: true,
@@ -194,6 +195,7 @@ export const login = async (req, res, next) => {
         nombre: user.nombre,
         email: user.email,
         verified: user.verified,
+        role: user.role || "user",
       },
     });
   } catch (err) {

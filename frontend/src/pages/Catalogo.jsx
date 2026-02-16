@@ -15,8 +15,6 @@ import {
 } from "@mui/material";
 
 import { api } from "../services/api";
-
-// Si tú ya tienes catalogConfig, lo seguimos usando:
 import { GROUPS } from "../config/catalogoConfig";
 
 function normalizeGroup(groupId, fallback = "automotriz") {
@@ -29,7 +27,6 @@ export default function Catalogo() {
 
   // ✅ lee group desde query
   const group = useMemo(() => normalizeGroup(sp.get("group") || "automotriz"), [sp]);
-
   const activeGroup = useMemo(() => GROUPS.find((g) => g.id === group), [group]);
 
   // UI state
@@ -43,18 +40,30 @@ export default function Catalogo() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // ✅ cargar lista pública (por ahora es la misma para todos los grupos)
-  // Después la conectamos a: /publicaciones?group=...
+  // ✅ cargar lista pública por grupo desde /publicar
   useEffect(() => {
     (async () => {
       setErr("");
       setLoading(true);
       try {
-        const data = await api.autos.publicList();
+        const data = await api.publicar.listPublic({ group, limit: 100 });
         const list = Array.isArray(data) ? data : data?.items || [];
 
-        // Si tu módulo actual usa "estado", filtramos disponible
-        const publicList = list.filter((a) => (a.estado || "disponible") === "disponible");
+        // Cada row: { id, group_id, data, user_id, created_at }
+        const mapped = list.map((row) => {
+          const p = row?.data && typeof row.data === "object" ? row.data : {};
+          return {
+            id: row.id,
+            group_id: row.group_id,
+            created_at: row.created_at,
+            _data: p,
+          };
+        });
+
+        // Estado normalmente vive dentro del JSON (data)
+        const publicList = mapped.filter(
+          (row) => ((row?._data?.estado ?? "disponible") === "disponible")
+        );
 
         setItems(publicList);
       } catch (e) {
@@ -70,26 +79,31 @@ export default function Catalogo() {
   const filtered = useMemo(() => {
     let list = [...items];
 
-    // búsqueda
+    // búsqueda (dentro de data)
     if (q.trim()) {
       const s = q.trim().toLowerCase();
-      list = list.filter((x) =>
-        `${x.marca || ""} ${x.modelo || ""} ${x.titulo || ""} ${x.descripcion || ""}`
-          .toLowerCase()
-          .includes(s)
-      );
+      list = list.filter((row) => {
+        const p = row._data || {};
+        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${p.modelo || ""} ${p.nombre || ""}`;
+        return haystack.toLowerCase().includes(s);
+      });
     }
 
-    // precio
+    // precio (dentro de data)
     const minN = min ? Number(min) : null;
     const maxN = max ? Number(max) : null;
 
-    if (minN != null && !Number.isNaN(minN)) list = list.filter((x) => Number(x.precio || 0) >= minN);
-    if (maxN != null && !Number.isNaN(maxN)) list = list.filter((x) => Number(x.precio || 0) <= maxN);
+    if (minN != null && !Number.isNaN(minN)) {
+      list = list.filter((row) => Number(row?._data?.precio ?? 0) >= minN);
+    }
+    if (maxN != null && !Number.isNaN(maxN)) {
+      list = list.filter((row) => Number(row?._data?.precio ?? 0) <= maxN);
+    }
 
     // orden
-    if (order === "menor") list.sort((a, b) => (a.precio || 0) - (b.precio || 0));
-    if (order === "mayor") list.sort((a, b) => (b.precio || 0) - (a.precio || 0));
+    if (order === "menor") list.sort((a, b) => (a._data?.precio ?? 0) - (b._data?.precio ?? 0));
+    if (order === "mayor") list.sort((a, b) => (b._data?.precio ?? 0) - (a._data?.precio ?? 0));
+    // "recientes": backend ya ordena por created_at desc, pero mantenemos tal cual
 
     return list;
   }, [items, q, min, max, order]);
@@ -238,14 +252,15 @@ export default function Catalogo() {
                 gap: 2,
               }}
             >
-              {filtered.slice(0, 24).map((x) => {
-                const title = x.titulo || `${x.marca || "Publicación"} ${x.modelo || ""}`.trim();
+              {filtered.slice(0, 24).map((row) => {
+                const p = row._data || {};
+                const title = p.titulo || p.nombre || "Publicación";
                 const price =
-                  x.precio == null ? "—" : `$${Number(x.precio).toLocaleString("es-MX")} MXN`;
-                const img = x.foto_url || x.imagenes?.[0] || "";
+                  p.precio == null ? "—" : `$${Number(p.precio).toLocaleString("es-MX")} MXN`;
+                const img = p.foto_url || p.imagenes?.[0] || "";
 
                 return (
-                  <Paper key={x.id} sx={{ p: 0, borderRadius: 3, overflow: "hidden" }}>
+                  <Paper key={row.id} sx={{ p: 0, borderRadius: 3, overflow: "hidden" }}>
                     <Box
                       sx={{
                         height: 180,
@@ -259,11 +274,11 @@ export default function Catalogo() {
                     <Box sx={{ p: 2 }}>
                       <Typography sx={{ fontWeight: 900 }}>{title}</Typography>
                       <Typography sx={{ opacity: 0.8, mt: 0.5, fontSize: 13 }}>
-                        {x.anio ?? "—"} · {price}
+                        {p.anio ?? p.año ?? "—"} · {price}
                       </Typography>
 
                       <Typography sx={{ opacity: 0.85, mt: 1, fontSize: 13 }}>
-                        {x.descripcion || "Sin descripción."}
+                        {p.descripcion || "Sin descripción."}
                       </Typography>
                     </Box>
                   </Paper>
@@ -273,8 +288,7 @@ export default function Catalogo() {
           )}
 
           <Typography sx={{ opacity: 0.6, fontSize: 12, mt: 2 }}>
-            Nota: por ahora esta vista consume tu lista pública actual. Próximo paso: conectar endpoints por grupo:
-            <b> /publicaciones?group=...</b>
+            Vista conectada al endpoint público: <b>/publicar?group=...&limit=...</b>
           </Typography>
         </Paper>
       </Box>

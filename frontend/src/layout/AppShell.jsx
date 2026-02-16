@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AppBar,
@@ -18,6 +18,7 @@ import {
   MenuItem,
   Tooltip,
   Container,
+  Chip,
 } from "@mui/material";
 
 import { GROUP_OPTIONS, normalizeGroup } from "../config/groups";
@@ -33,9 +34,35 @@ export default function AppShell() {
   // ✅ Grupo actual (viene de query param)
   const group = useMemo(() => normalizeGroup(sp.get("group") || "automotriz"), [sp]);
 
-  // ✅ Auth simple por token (ajusta key si la tuya cambia)
+  // ✅ Auth simple por token
   const token = api.getToken?.() || localStorage.getItem("token");
   const isAuthed = Boolean(token);
+
+  // ✅ user + admin badge
+  const [me, setMe] = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.me();
+        setMe(data || null);
+      } catch {
+        setMe(null);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (me?.role === "admin") {
+      api.publicar
+        .adminList({ status: "pendiente", limit: 1, offset: 0 })
+        .then((r) => setPendingCount(r?.data?.total ?? 0))
+        .catch(() => setPendingCount(0));
+    } else {
+      setPendingCount(0);
+    }
+  }, [me]);
 
   const goCatalogo = (nextGroup = group) => {
     const g = normalizeGroup(nextGroup);
@@ -44,6 +71,16 @@ export default function AppShell() {
 
   const goPublish = () => nav("/publicar");
   const goPerfil = () => nav("/perfil");
+
+  // ✅ Selector inteligente: si estás en /publicar... cambia a /publicar/:group, si no, a /catalogo
+  const onGroupChange = (nextGroup) => {
+    const g = normalizeGroup(nextGroup);
+    if (location.pathname.startsWith("/publicar")) {
+      nav(`/publicar/${encodeURIComponent(g)}`);
+    } else {
+      goCatalogo(g);
+    }
+  };
 
   // Mostrar selector de grupo solo donde tiene sentido
   const showGroupSelect = useMemo(() => {
@@ -55,6 +92,8 @@ export default function AppShell() {
     api.logout?.();
     localStorage.removeItem("token");
     setDrawerOpen(false);
+    setMe(null);
+    setPendingCount(0);
     nav("/");
   };
 
@@ -70,6 +109,8 @@ export default function AppShell() {
     setDrawerOpen(false);
     fn?.();
   };
+
+  const goAdmin = () => nav("/admin/publicaciones");
 
   return (
     <Box sx={{ minHeight: "100vh" }}>
@@ -159,7 +200,7 @@ export default function AppShell() {
                 labelId="group-label"
                 value={group}
                 label="Grupo"
-                onChange={(e) => goCatalogo(normalizeGroup(e.target.value))}
+                onChange={(e) => onGroupChange(e.target.value)}
               >
                 {GROUP_OPTIONS.map((g) => (
                   <MenuItem key={g.id} value={g.id}>
@@ -191,6 +232,34 @@ export default function AppShell() {
 
           {isAuthed ? (
             <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1, ml: 1 }}>
+              {/* 👑 Admin button only if role=admin */}
+              {me?.role === "admin" && (
+                <Button
+                  variant="outlined"
+                  onClick={goAdmin}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 900,
+                    borderColor: "rgba(255,215,0,0.55)",
+                    background: "rgba(255,215,0,0.12)",
+                    "&:hover": { background: "rgba(255,215,0,0.18)" },
+                    display: "flex",
+                    gap: 1,
+                    alignItems: "center",
+                  }}
+                >
+                  Admin
+                  {pendingCount > 0 && (
+                    <Chip
+                      size="small"
+                      label={pendingCount}
+                      color="warning"
+                      sx={{ fontWeight: 900 }}
+                    />
+                  )}
+                </Button>
+              )}
+
               <Button
                 variant="outlined"
                 onClick={goPublish}
@@ -198,6 +267,7 @@ export default function AppShell() {
               >
                 Publicar
               </Button>
+
               <Button
                 variant="outlined"
                 onClick={goPerfil}
@@ -205,6 +275,7 @@ export default function AppShell() {
               >
                 Perfil
               </Button>
+
               <Button
                 variant="outlined"
                 onClick={logout}
@@ -268,7 +339,12 @@ export default function AppShell() {
 
           <List>
             {topLinks.map((l) => (
-              <ListItemButton key={l.to} component={Link} to={l.to} onClick={() => setDrawerOpen(false)}>
+              <ListItemButton
+                key={l.to}
+                component={Link}
+                to={l.to}
+                onClick={() => setDrawerOpen(false)}
+              >
                 <ListItemText primary={l.label} />
               </ListItemButton>
             ))}
@@ -292,8 +368,7 @@ export default function AppShell() {
                     borderColor: "rgba(255,255,255,0.14)",
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(255,255,255,0.22)",
-                  },
+                    borderColor: "rgba(255,255,255,0.22)" },
                   "& .MuiSvgIcon-root": { color: "rgba(255,255,255,.85)" },
                 }}
               >
@@ -303,8 +378,9 @@ export default function AppShell() {
                   value={group}
                   label="Grupo"
                   onChange={(e) => {
+                    const g = e.target.value;
                     setDrawerOpen(false);
-                    goCatalogo(normalizeGroup(e.target.value));
+                    onGroupChange(g);
                   }}
                 >
                   {GROUP_OPTIONS.map((g) => (
@@ -322,6 +398,14 @@ export default function AppShell() {
           <List>
             {isAuthed ? (
               <>
+                {me?.role === "admin" && (
+                  <ListItemButton onClick={closeDrawerAnd(goAdmin)}>
+                    <ListItemText
+                      primary={`Admin${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
+                    />
+                  </ListItemButton>
+                )}
+
                 <ListItemButton onClick={closeDrawerAnd(goPublish)}>
                   <ListItemText primary="Publicar" />
                 </ListItemButton>
