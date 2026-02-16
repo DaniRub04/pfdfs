@@ -13,6 +13,21 @@ const REQUIRE_EMAIL_VERIFICATION =
   String(process.env.REQUIRE_EMAIL_VERIFICATION ?? "false")
     .toLowerCase() === "true";
 
+function newUuid() {
+  // Node 16+ soporta randomUUID en la mayoría de entornos modernos
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+
+  // fallback (por si acaso)
+  const b = crypto.randomBytes(16);
+  b[6] = (b[6] & 0x0f) | 0x40; // version 4
+  b[8] = (b[8] & 0x3f) | 0x80; // variant
+  const hex = b.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
+    12,
+    16
+  )}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 // POST /auth/register
 router.post("/register", async (req, res, next) => {
   try {
@@ -42,14 +57,15 @@ router.post("/register", async (req, res, next) => {
     // ✅ Si NO se requiere verificación, lo marcamos verified=true desde el inicio
     const verifiedOnCreate = REQUIRE_EMAIL_VERIFICATION ? false : true;
 
-    // ✅ OJO:
-    // En Supabase, instance_id existe en auth.users, NO en public.users.
-    // Aquí trabajamos con public.users, así que usamos su PK: id.
+    // ✅ IMPORTANTÍSIMO:
+    // Generamos UUID para id (evita null en id y garantiza que el JWT tenga UUID válido)
+    const id = newUuid();
+
     const { rows } = await pool.query(
-      `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires)
-       VALUES ($1,$2,$3,$4,$5,$6)
+      `INSERT INTO public.users (id, nombre, email, password_hash, verified, verify_token, verify_expires)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        RETURNING id, nombre, email, creado_en, verified`,
-      [nombre, email, password_hash, verifiedOnCreate, verify_token, verify_expires]
+      [id, nombre, email, password_hash, verifiedOnCreate, verify_token, verify_expires]
     );
 
     // ✅ Si NO se requiere verificación, ya no mandamos correo
@@ -142,7 +158,6 @@ router.post("/login", async (req, res, next) => {
       return res.status(400).json({ ok: false, message: "Faltan credenciales" });
     }
 
-    // ✅ Traemos id (PK de public.users) para firmarlo en el JWT
     const { rows } = await pool.query(
       `SELECT id, nombre, email, password_hash, verified
        FROM public.users
@@ -168,11 +183,11 @@ router.post("/login", async (req, res, next) => {
       });
     }
 
-    // ✅ id = public.users.id
+    // ✅ JWT con UUID en subject (sub) y también en payload (compatibilidad)
     const token = jwt.sign(
       { id: user.id, email: user.email, nombre: user.nombre },
       env.JWT_SECRET,
-      { expiresIn: "2h" }
+      { subject: user.id, expiresIn: "2h" }
     );
 
     return res.json({

@@ -1,11 +1,8 @@
 // backend/src/services/publicar.service.js
 import { pool } from "../db/pool.js";
 
-function isUuid(v) {
-  return (
-    typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
-  );
+function isBigintId(v) {
+  return typeof v === "string" && /^[0-9]+$/.test(v);
 }
 
 function normalizeGroup(group) {
@@ -23,7 +20,7 @@ function assertObject(data) {
 
 /**
  * Crea una publicación en public.publicaciones
- * columnas: group_id (text), data (jsonb), user_id (uuid), status (text), created_at
+ * columnas: group_id (text), data (jsonb), user_id (bigint), status (text), created_at
  * - status por defecto: 'pendiente'
  */
 export async function createPublication({ group, data, userId }) {
@@ -45,19 +42,18 @@ export async function createPublication({ group, data, userId }) {
     throw err;
   }
 
-  const userIdStr = String(userId);
-  if (!isUuid(userIdStr)) {
-    const err = new Error("No autorizado: userId no es UUID válido");
+  const userIdStr = String(userId).trim();
+  if (!isBigintId(userIdStr)) {
+    const err = new Error("No autorizado: userId no es bigint válido");
     err.status = 401;
     throw err;
   }
 
   const groupNormalized = normalizeGroup(group);
 
-  // ✅ status real: pendiente al crear
   const q = `
-    insert into publicaciones (group_id, data, user_id, status)
-    values ($1, $2::jsonb, $3::uuid, 'pendiente')
+    insert into public.publicaciones (group_id, data, user_id, status)
+    values ($1, $2::jsonb, $3::bigint, 'pendiente')
     returning id, group_id, data, user_id, status, created_at
   `;
 
@@ -93,14 +89,14 @@ export async function listPublications({ group = null, limit = 12 }) {
   const q = groupNormalized
     ? `
       select id, group_id, data, user_id, status, created_at
-      from publicaciones
+      from public.publicaciones
       where group_id = $1 and status = 'aprobado'
       order by created_at desc
       limit $2
     `
     : `
       select id, group_id, data, user_id, status, created_at
-      from publicaciones
+      from public.publicaciones
       where status = 'aprobado'
       order by created_at desc
       limit $1
@@ -134,9 +130,9 @@ export async function listMyPublications({ userId, group = null, limit = 50 }) {
     throw err;
   }
 
-  const userIdStr = String(userId);
-  if (!isUuid(userIdStr)) {
-    const err = new Error("No autorizado: userId no es UUID válido");
+  const userIdStr = String(userId).trim();
+  if (!isBigintId(userIdStr)) {
+    const err = new Error("No autorizado: userId no es bigint válido");
     err.status = 401;
     throw err;
   }
@@ -149,15 +145,15 @@ export async function listMyPublications({ userId, group = null, limit = 50 }) {
   const q = groupNormalized
     ? `
       select id, group_id, data, user_id, status, created_at
-      from publicaciones
-      where user_id = $1::uuid and group_id = $2
+      from public.publicaciones
+      where user_id = $1::bigint and group_id = $2
       order by created_at desc
       limit $3
     `
     : `
       select id, group_id, data, user_id, status, created_at
-      from publicaciones
-      where user_id = $1::uuid
+      from public.publicaciones
+      where user_id = $1::bigint
       order by created_at desc
       limit $2
     `;
@@ -202,17 +198,17 @@ export async function updateMyPublication({ id, userId, data }) {
     throw err;
   }
 
-  const userIdStr = String(userId);
-  if (!isUuid(userIdStr)) {
-    const err = new Error("No autorizado: userId no es UUID válido");
+  const userIdStr = String(userId).trim();
+  if (!isBigintId(userIdStr)) {
+    const err = new Error("No autorizado: userId no es bigint válido");
     err.status = 401;
     throw err;
   }
 
   const q = `
-    update publicaciones
+    update public.publicaciones
     set data = $1::jsonb
-    where id = $2 and user_id = $3::uuid
+    where id = $2 and user_id = $3::bigint
     returning id, group_id, data, user_id, status, created_at
   `;
 
@@ -248,16 +244,16 @@ export async function deleteMyPublication({ id, userId }) {
     throw err;
   }
 
-  const userIdStr = String(userId);
-  if (!isUuid(userIdStr)) {
-    const err = new Error("No autorizado: userId no es UUID válido");
+  const userIdStr = String(userId).trim();
+  if (!isBigintId(userIdStr)) {
+    const err = new Error("No autorizado: userId no es bigint válido");
     err.status = 401;
     throw err;
   }
 
   const q = `
-    delete from publicaciones
-    where id = $1 and user_id = $2::uuid
+    delete from public.publicaciones
+    where id = $1 and user_id = $2::bigint
     returning id
   `;
 
@@ -300,17 +296,17 @@ export async function setPublicationStatus({ id, userId, status }) {
     throw err;
   }
 
-  const userIdStr = String(userId);
-  if (!isUuid(userIdStr)) {
-    const err = new Error("No autorizado: userId no es UUID válido");
+  const userIdStr = String(userId).trim();
+  if (!isBigintId(userIdStr)) {
+    const err = new Error("No autorizado: userId no es bigint válido");
     err.status = 401;
     throw err;
   }
 
   const q = `
-    update publicaciones
+    update public.publicaciones
     set status = $1
-    where id = $2 and user_id = $3::uuid
+    where id = $2 and user_id = $3::bigint
     returning id, group_id, data, user_id, status, created_at
   `;
 

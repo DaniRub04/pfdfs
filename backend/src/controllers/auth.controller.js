@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { pool } from "../config/db.js";
-import { env } from "../config/env.js";
+import { env, isEmailEnabled } from "../config/env.js";
 import { sendVerifyEmail } from "../utils/mailer.js";
 
 /* =========================
@@ -12,15 +12,27 @@ function normalizeEmail(email) {
   return String(email || "").toLowerCase().trim();
 }
 
-// Validación simple de UUID (evita "invalid input syntax for type uuid")
 function isUUID(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value || "")
   );
 }
 
+function newUuid() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+
+  const b = crypto.randomBytes(16);
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const hex = b.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
+    16,
+    20
+  )}-${hex.slice(20)}`;
+}
+
 /* =========================
-   REGISTER (crea usuario + manda verificación)
+   REGISTER
 ========================= */
 export const register = async (req, res, next) => {
   try {
@@ -35,7 +47,6 @@ export const register = async (req, res, next) => {
 
     const emailNorm = normalizeEmail(email);
 
-    // ¿ya existe?
     const exists = await pool.query("SELECT 1 FROM public.users WHERE email = $1", [
       emailNorm,
     ]);
@@ -46,37 +57,60 @@ export const register = async (req, res, next) => {
         .json({ ok: false, message: "El email ya está registrado" });
     }
 
-    // hash password
-    const password_hash = await bcrypt.hash(password, 10);
+    const password_hash = await bcrypt.hash(String(password), 10);
 
-    // token de verificación (1 hora)
     const verify_token = crypto.randomBytes(32).toString("hex");
     const verify_expires = new Date(Date.now() + 1000 * 60 * 60);
 
-    // crea user
-    // ✅ IMPORTANTE: devolvemos instance_id como id (UUID)
-    // ✅ Incluimos role (si existe columna role; si no existe, no rompe porque no lo insertamos)
+    // ✅ Si NO requieres verificación, crea verified=true y no envías correo
+    const REQUIRE_EMAIL_VERIFICATION =
+      String(process.env.REQUIRE_EMAIL_VERIFICATION ?? "false")
+        .toLowerCase() === "true";
+
+    const verifiedOnCreate = REQUIRE_EMAIL_VERIFICATION ? false : true;
+
+    // ✅ ID UUID real para public.users.id
+    const id = newUuid();
+
+    // ⚠️ Si tu tabla NO tiene columna role, quita "role" del returning
     const { rows } = await pool.query(
-      `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires)
-       VALUES ($1, $2, $3, false, $4, $5)
-       RETURNING instance_id AS id, nombre, email, verified, role`,
-      [String(nombre).trim(), emailNorm, password_hash, verify_token, verify_expires]
+      `INSERT INTO public.users (id, nombre, email, password_hash, verified, verify_token, verify_expires)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, nombre, email, verified, role`,
+      [id, String(nombre).trim(), emailNorm, password_hash, verifiedOnCreate, verify_token, verify_expires]
     );
 
-    // URL a tu frontend (Vercel)
+    // ✅ Si no se requiere verificación, termina aquí
+    if (!REQUIRE_EMAIL_VERIFICATION) {
+      return res.status(201).json({
+        ok: true,
+        message: "Registro exitoso. Ya puedes iniciar sesión.",
+        user: rows[0],
+      });
+    }
+
+    // ✅ En producción, si verificación es obligatoria y no hay SMTP
+    if (env.NODE_ENV === "production" && !isEmailEnabled?.()) {
+      return res.status(500).json({
+        ok: false,
+        message: "SMTP no configurado. No se puede enviar verificación.",
+      });
+    }
+
     const verifyUrl = `${env.APP_URL}/verify?token=${verify_token}`;
 
-    // enviar correo
     await sendVerifyEmail({
       to: emailNorm,
-      name: String(nombre).trim(),
+      nombre: String(nombre).trim(),
+      token: verify_token,
       verifyUrl,
     });
 
     return res.status(201).json({
       ok: true,
       message: "Registro exitoso. Revisa tu correo para verificar tu cuenta.",
-      user: rows[0], // { id (uuid), nombre, email, verified, role }
+      user: rows[0],
+      ...(env.NODE_ENV !== "production" ? { dev_verify_url: verifyUrl } : {}),
     });
   } catch (err) {
     next(err);
@@ -85,17 +119,15 @@ export const register = async (req, res, next) => {
 
 /* =========================
    VERIFY EMAIL
-   GET /auth/verify?token=...
 ========================= */
 export const verifyEmail = async (req, res, next) => {
   try {
-    const { token } = req.query;
+    const token = String(req.query.token || "").trim();
 
     if (!token) {
       return res.status(400).json({ ok: false, message: "Token requerido" });
     }
 
-    // ✅ devolvemos instance_id como id (UUID)
     const { rowCount, rows } = await pool.query(
       `UPDATE public.users
        SET verified = true,
@@ -104,8 +136,8 @@ export const verifyEmail = async (req, res, next) => {
        WHERE verify_token = $1
          AND verify_expires > now()
          AND verified = false
-       RETURNING instance_id AS id, email, verified, role`,
-      [String(token)]
+       RETURNING id, email, verified, role`,
+      [token]
     );
 
     if (rowCount === 0) {
@@ -126,7 +158,7 @@ export const verifyEmail = async (req, res, next) => {
 };
 
 /* =========================
-   LOGIN (bloquea si no verified)
+   LOGIN
 ========================= */
 export const login = async (req, res, next) => {
   try {
@@ -140,10 +172,9 @@ export const login = async (req, res, next) => {
 
     const emailNorm = normalizeEmail(email);
 
-    // ✅ IMPORTANTE: usamos instance_id como id (UUID)
-    // ✅ Traemos role para meterlo al JWT (admin/user)
+    // ⚠️ Si tu tabla NO tiene columna role, quita "role" del SELECT
     const { rows } = await pool.query(
-      `SELECT instance_id AS id, nombre, email, password_hash, verified, role
+      `SELECT id, nombre, email, password_hash, verified, role
        FROM public.users
        WHERE email = $1`,
       [emailNorm]
@@ -155,37 +186,42 @@ export const login = async (req, res, next) => {
 
     const user = rows[0];
 
-    const ok = await bcrypt.compare(password, user.password_hash);
+    const ok = await bcrypt.compare(String(password), user.password_hash);
     if (!ok) {
       return res.status(401).json({ ok: false, message: "Credenciales inválidas" });
     }
 
-    // 🔒 Bloquea si no verificó
-    if (!user.verified) {
+    const REQUIRE_EMAIL_VERIFICATION =
+      String(process.env.REQUIRE_EMAIL_VERIFICATION ?? "false")
+        .toLowerCase() === "true";
+
+    if (REQUIRE_EMAIL_VERIFICATION && !user.verified) {
       return res.status(403).json({
         ok: false,
         message: "Tu cuenta no está verificada. Revisa tu correo.",
       });
     }
 
-    // ✅ Aseguramos UUID real para que publicar.user_id (uuid) funcione
     if (!isUUID(user.id)) {
       return res.status(500).json({
         ok: false,
-        message:
-          "El usuario no tiene un UUID válido (instance_id). Revisa la columna users.instance_id.",
+        message: "El usuario no tiene un UUID válido (users.id). Revisa tu tabla public.users.",
         debug: { userId: String(user.id) },
       });
     }
 
     const payload = {
-      id: String(user.id), // 👈 UUID
+      id: String(user.id),
       email: user.email,
       nombre: user.nombre,
-      role: user.role || "user", // ✅ CLAVE para AdminPanel
+      role: user.role || "user",
     };
 
-    const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: "1d" });
+    // ✅ Ponemos el UUID también en "sub" (mejor práctica)
+    const token = jwt.sign(payload, env.JWT_SECRET, {
+      subject: String(user.id),
+      expiresIn: "1d",
+    });
 
     return res.json({
       ok: true,
