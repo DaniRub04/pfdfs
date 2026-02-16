@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { api } from "../services/api";
-import { GROUPS } from "../config/catalogoConfig"; // ajusta si tu config está en otra ruta
+import { GROUPS } from "../config/catalogoConfig";
 
 const STATUS_OPTIONS = [
   { id: "pendiente", label: "PENDIENTE" },
@@ -31,12 +31,18 @@ function statusChip(status) {
 }
 
 /**
- * Normaliza cualquier forma posible del backend:
- * - { total, rows }
- * - { ok:true, data:{ total, rows } }
- * - { data:{ total, rows } }
- * - rows: [] (directo)
+ * Compat MUI X:
+ * - Firma vieja: (params) => params.row
+ * - Firma nueva (v8): (value, row) => row
  */
+function pickRow(args0, args1) {
+  // v8: (value, row)
+  if (args1 && typeof args1 === "object") return args1;
+  // vieja: (params)
+  if (args0 && typeof args0 === "object" && args0.row) return args0.row;
+  return null;
+}
+
 function normalizeAdminListResponse(resp) {
   if (Array.isArray(resp)) return { total: resp.length, rows: resp };
 
@@ -61,22 +67,18 @@ function normalizeAdminListResponse(resp) {
 }
 
 export default function AdminPublicaciones() {
-  // filtros
   const [status, setStatus] = useState("pendiente");
   const [group, setGroup] = useState("");
   const [q, setQ] = useState("");
 
-  // paginación server-side
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
-  // data
   const [rowsRaw, setRowsRaw] = useState([]);
   const [rowCount, setRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // métricas
   const [stats, setStats] = useState({ pendiente: 0, aprobado: 0, rechazado: 0 });
 
   const loadStats = useCallback(async () => {
@@ -140,7 +142,6 @@ export default function AdminPublicaciones() {
     }
   }
 
-  // filtro local instantáneo
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return rowsRaw;
@@ -162,7 +163,10 @@ export default function AdminPublicaciones() {
         field: "group_id",
         headerName: "Grupo",
         width: 150,
-        valueGetter: (p) => p.row?.group_id || "—",
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          return row?.group_id || "—";
+        },
       },
 
       {
@@ -170,31 +174,38 @@ export default function AdminPublicaciones() {
         headerName: "Título",
         flex: 1,
         minWidth: 220,
-        valueGetter: (p) =>
-          p.row?.data?.titulo ||
-          `${p.row?.data?.marca || ""} ${p.row?.data?.modelo || ""}`.trim() ||
-          "—",
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          const d = row?.data || {};
+          return d.titulo || `${d.marca || ""} ${d.modelo || ""}`.trim() || "—";
+        },
       },
 
       {
         field: "creador",
         headerName: "User",
         width: 140,
-        valueGetter: (p) => (p.row?.user_id ? String(p.row.user_id).slice(0, 8) + "…" : "—"),
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          return row?.user_id ? String(row.user_id).slice(0, 8) + "…" : "—";
+        },
       },
 
       {
         field: "status",
         headerName: "Estado",
         width: 140,
-        renderCell: (p) => statusChip(p.value),
+        renderCell: (params) => statusChip(params.value),
       },
 
       {
         field: "created_at",
         headerName: "Fecha",
         width: 140,
-        valueGetter: (p) => (p.row?.created_at ? String(p.row.created_at).slice(0, 10) : "—"),
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          return row?.created_at ? String(row.created_at).slice(0, 10) : "—";
+        },
       },
 
       {
@@ -203,9 +214,9 @@ export default function AdminPublicaciones() {
         width: 320,
         sortable: false,
         filterable: false,
-        renderCell: (p) => {
-          const id = p.row.id;
-          const st = String(p.row.status || "").toLowerCase();
+        renderCell: (params) => {
+          const id = params.row?.id;
+          const st = String(params.row?.status || "").toLowerCase();
 
           return (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -241,7 +252,6 @@ export default function AdminPublicaciones() {
         },
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -251,7 +261,6 @@ export default function AdminPublicaciones() {
         Admin Panel — Moderación de publicaciones
       </Typography>
 
-      {/* métricas */}
       <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <Paper sx={{ p: 2, borderRadius: 3, flex: 1, minWidth: 220 }}>
           <Typography sx={{ fontWeight: 900 }}>Pendientes</Typography>
@@ -356,13 +365,12 @@ export default function AdminPublicaciones() {
           </Typography>
         )}
 
-        {/* ✅ Altura segura + estilos inline (sin importar grid.css) */}
         <Box sx={{ height: "70vh", minHeight: 560, width: "100%" }}>
           <DataGrid
             rows={rows}
             columns={columns}
             loading={loading}
-            getRowId={(r) => r.id}
+            getRowId={(r) => r?.id ?? `${r?.group_id ?? "x"}-${r?.created_at ?? Math.random()}`}
             rowCount={rowCount}
             paginationMode="server"
             paginationModel={{ page, pageSize }}
