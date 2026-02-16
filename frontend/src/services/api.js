@@ -117,6 +117,12 @@ async function request(path, options = {}) {
     throw err;
   }
 
+  // ✅ Si viene token (login), NO colapsar el response
+  // backend: { ok:true, token:"...", user:{...} }
+  if (data && typeof data === "object" && "ok" in data && "token" in data) {
+    return data; // preserva token + user
+  }
+
   // ✅ Normaliza respuestas { ok, data }
   if (data && typeof data === "object" && "ok" in data && "data" in data) {
     return data.data;
@@ -158,12 +164,15 @@ const api = {
       body: JSON.stringify(payload),
     });
 
-    // login normalmente regresa { token, user? }
+    // ✅ Ahora request() preserva { ok, token, user }
     const token = data?.token;
-    if (!token) throw new Error("Login exitoso pero no se recibió token");
+    if (!token) {
+      console.log("LOGIN RESPONSE:", data);
+      throw new Error("Login exitoso pero no se recibió token");
+    }
 
     setToken(token);
-    return data;
+    return data; // { ok, token, user }
   },
 
   logout: () => clearToken(),
@@ -171,7 +180,7 @@ const api = {
   /* ---------- USER ---------- */
   me: async () => {
     if (!isLoggedIn()) return null;
-    // request() ya normaliza {ok,user} => regresa user directo
+    // request() normaliza {ok,user} => regresa user directo
     return request("/profile/me");
   },
 
