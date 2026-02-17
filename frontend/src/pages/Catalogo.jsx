@@ -1,3 +1,4 @@
+// frontend/src/pages/Catalogo.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -15,13 +16,19 @@ import {
 } from "@mui/material";
 
 import { api } from "../services/api";
-
-// Si tú ya tienes catalogConfig, lo seguimos usando:
 import { GROUPS } from "../config/catalogoConfig";
+import PublicationCard from "../components/PublicationCard";
+import "../styles/publicationCards.css";
 
 function normalizeGroup(groupId, fallback = "automotriz") {
   const ok = GROUPS.some((g) => g.id === groupId);
   return ok ? groupId : fallback;
+}
+
+function toNumberOrNull(v) {
+  if (v == null) return null;
+  const n = Number(String(v).replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : null;
 }
 
 export default function Catalogo() {
@@ -29,7 +36,6 @@ export default function Catalogo() {
 
   // ✅ lee group desde query
   const group = useMemo(() => normalizeGroup(sp.get("group") || "automotriz"), [sp]);
-
   const activeGroup = useMemo(() => GROUPS.find((g) => g.id === group), [group]);
 
   // UI state
@@ -43,53 +49,77 @@ export default function Catalogo() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // ✅ cargar lista pública (por ahora es la misma para todos los grupos)
-  // Después la conectamos a: /publicaciones?group=...
+  async function load() {
+    setErr("");
+    setLoading(true);
+    try {
+      // ✅ Catálogo sí es por grupo
+      const resp = await api.publicar.listPublic({ group, limit: 200 });
+
+      // backend: { ok:true, data:[...] }
+      const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
+
+      const mapped = list.map((row) => ({
+        ...row,
+        _data: row?.data && typeof row.data === "object" ? row.data : {},
+      }));
+
+      setItems(mapped);
+    } catch (e) {
+      setErr(e?.message || "No se pudieron cargar publicaciones");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ✅ cargar lista pública por grupo
   useEffect(() => {
-    (async () => {
-      setErr("");
-      setLoading(true);
-      try {
-        const data = await api.autos.publicList();
-        const list = Array.isArray(data) ? data : data?.items || [];
-
-        // Si tu módulo actual usa "estado", filtramos disponible
-        const publicList = list.filter((a) => (a.estado || "disponible") === "disponible");
-
-        setItems(publicList);
-      } catch (e) {
-        setErr(e?.message || "No se pudieron cargar publicaciones");
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group]);
 
   // ✅ filtro/orden local (simple)
   const filtered = useMemo(() => {
     let list = [...items];
 
-    // búsqueda
+    // búsqueda (sobre data + group_id)
     if (q.trim()) {
       const s = q.trim().toLowerCase();
-      list = list.filter((x) =>
-        `${x.marca || ""} ${x.modelo || ""} ${x.titulo || ""} ${x.descripcion || ""}`
-          .toLowerCase()
-          .includes(s)
-      );
+      list = list.filter((row) => {
+        const p = row._data || {};
+        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${
+          p.modelo || ""
+        } ${p.nombre || ""} ${row.group_id || ""}`;
+        return haystack.toLowerCase().includes(s);
+      });
     }
 
-    // precio
-    const minN = min ? Number(min) : null;
-    const maxN = max ? Number(max) : null;
+    // precio (dentro de data)
+    const minN = min ? toNumberOrNull(min) : null;
+    const maxN = max ? toNumberOrNull(max) : null;
 
-    if (minN != null && !Number.isNaN(minN)) list = list.filter((x) => Number(x.precio || 0) >= minN);
-    if (maxN != null && !Number.isNaN(maxN)) list = list.filter((x) => Number(x.precio || 0) <= maxN);
+    if (minN != null) {
+      list = list.filter((row) => {
+        const price = toNumberOrNull(row?._data?.precio) ?? 0;
+        return price >= minN;
+      });
+    }
+    if (maxN != null) {
+      list = list.filter((row) => {
+        const price = toNumberOrNull(row?._data?.precio) ?? 0;
+        return price <= maxN;
+      });
+    }
 
     // orden
-    if (order === "menor") list.sort((a, b) => (a.precio || 0) - (b.precio || 0));
-    if (order === "mayor") list.sort((a, b) => (b.precio || 0) - (a.precio || 0));
+    if (order === "menor") {
+      list.sort((a, b) => (toNumberOrNull(a._data?.precio) ?? 0) - (toNumberOrNull(b._data?.precio) ?? 0));
+    }
+    if (order === "mayor") {
+      list.sort((a, b) => (toNumberOrNull(b._data?.precio) ?? 0) - (toNumberOrNull(a._data?.precio) ?? 0));
+    }
+    // "recientes": backend ya ordena por created_at desc
 
     return list;
   }, [items, q, min, max, order]);
@@ -152,6 +182,10 @@ export default function Catalogo() {
               ))}
             </Select>
           </FormControl>
+
+          <Button variant="outlined" onClick={load} disabled={loading}>
+            Recargar
+          </Button>
 
           <Button variant="outlined" onClick={clearFilters}>
             Limpiar
@@ -238,43 +272,14 @@ export default function Catalogo() {
                 gap: 2,
               }}
             >
-              {filtered.slice(0, 24).map((x) => {
-                const title = x.titulo || `${x.marca || "Publicación"} ${x.modelo || ""}`.trim();
-                const price =
-                  x.precio == null ? "—" : `$${Number(x.precio).toLocaleString("es-MX")} MXN`;
-                const img = x.foto_url || x.imagenes?.[0] || "";
-
-                return (
-                  <Paper key={x.id} sx={{ p: 0, borderRadius: 3, overflow: "hidden" }}>
-                    <Box
-                      sx={{
-                        height: 180,
-                        background:
-                          img
-                            ? `url(${img}) center/cover no-repeat`
-                            : "radial-gradient(600px 200px at 20% 20%, rgba(45,212,191,.18), transparent 60%), linear-gradient(180deg, rgba(0,0,0,.35), rgba(255,255,255,.03))",
-                      }}
-                    />
-
-                    <Box sx={{ p: 2 }}>
-                      <Typography sx={{ fontWeight: 900 }}>{title}</Typography>
-                      <Typography sx={{ opacity: 0.8, mt: 0.5, fontSize: 13 }}>
-                        {x.anio ?? "—"} · {price}
-                      </Typography>
-
-                      <Typography sx={{ opacity: 0.85, mt: 1, fontSize: 13 }}>
-                        {x.descripcion || "Sin descripción."}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                );
-              })}
+              {filtered.slice(0, 60).map((row) => (
+                <PublicationCard key={row.id} row={row} />
+              ))}
             </Box>
           )}
 
           <Typography sx={{ opacity: 0.6, fontSize: 12, mt: 2 }}>
-            Nota: por ahora esta vista consume tu lista pública actual. Próximo paso: conectar endpoints por grupo:
-            <b> /publicaciones?group=...</b>
+            Vista conectada al endpoint público: <b>/publicar?group=...&limit=...</b>
           </Typography>
         </Paper>
       </Box>

@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getGroupConfig } from "../config/catalogoConfig";
-
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  "https://concesionaria-backend-rskz.onrender.com";
+import { api } from "../services/api";
 
 function Field({ field, value, onChange }) {
   const common = {
@@ -45,16 +42,15 @@ export default function PublishForm() {
 
   const cfg = useMemo(() => getGroupConfig(group), [group]);
 
-  const [form, setForm] = useState({ group });
+  // ✅ Guardamos SOLO campos del formulario, no metemos group aquí
+  const [form, setForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   if (!cfg) {
     return (
       <div style={{ padding: 24 }}>
         <h1>Grupo no válido</h1>
-        <button onClick={() => nav("/publicar")}>
-          Volver
-        </button>
+        <button onClick={() => nav("/publicar")}>Volver</button>
       </div>
     );
   }
@@ -65,9 +61,7 @@ export default function PublishForm() {
 
   function validate() {
     const schema = cfg.publishSchema || [];
-    return schema.filter(
-      (f) => f.required && !String(form[f.name] ?? "").trim()
-    );
+    return schema.filter((f) => f.required && !String(form[f.name] ?? "").trim());
   }
 
   async function onSubmit(e) {
@@ -76,41 +70,23 @@ export default function PublishForm() {
 
     const missing = validate();
     if (missing.length) {
-      alert(
-        "Completa los campos requeridos: " +
-          missing.map((m) => m.label).join(", ")
-      );
+      alert("Completa los campos requeridos: " + missing.map((m) => m.label).join(", "));
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const token = localStorage.getItem("token");
-
-      const res = await fetch(`${API_BASE}/publicar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          group,
-          data: form,
-        }),
+      // ✅ Publica usando tu API centralizada (usa token automáticamente)
+      await api.publicar.create({
+        group,     // va a group_id en BD
+        data: form // jsonb en BD
       });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        alert(json?.message || "Error al publicar");
-        return;
-      }
 
       alert("Publicado correctamente ✅");
       nav("/perfil/publicaciones");
     } catch (err) {
-      alert("Error al publicar: " + err.message);
+      alert("Error al publicar: " + (err?.message || "Error desconocido"));
     } finally {
       setSubmitting(false);
     }
@@ -127,20 +103,13 @@ export default function PublishForm() {
             <label style={{ display: "block", marginBottom: 6 }}>
               {f.label} {f.required ? "*" : ""}
             </label>
-            <Field
-              field={f}
-              value={form[f.name]}
-              onChange={(v) => setField(f.name, v)}
-            />
+
+            <Field field={f} value={form[f.name]} onChange={(v) => setField(f.name, v)} />
           </div>
         ))}
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button
-            type="button"
-            onClick={() => nav("/publicar")}
-            disabled={submitting}
-          >
+          <button type="button" onClick={() => nav("/publicar")} disabled={submitting}>
             Cambiar grupo
           </button>
 

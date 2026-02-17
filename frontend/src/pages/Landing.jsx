@@ -1,7 +1,10 @@
+// frontend/src/pages/Landing.jsx
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../services/api";
+import PublicationCard from "../components/PublicationCard";
 import "../styles/landing.css";
+import "../styles/publicationCards.css";
 
 const DEMO_MODELS = [
   { id: "m1", img: "/landing/img/carro1.avif", price: "660,000 MXN", name: "Modelo destacado 1" },
@@ -9,7 +12,7 @@ const DEMO_MODELS = [
   { id: "m3", img: "/landing/img/carro3.avif", price: "1,100,000 MXN", name: "Modelo destacado 3" },
 ];
 
-// ✅ Grupo/categoría principal (para tu catálogo por grupos)
+// ✅ Grupo/categoría principal (para navegar)
 const GROUP_OPTIONS = [
   { id: "automotriz", label: "Automotriz" },
   { id: "marketplace", label: "Marketplace" },
@@ -49,7 +52,7 @@ export default function Landing() {
   const [me, setMe] = useState(null);
   const [isAuthed, setIsAuthed] = useState(Boolean(getLocalToken()));
 
-  // preview público
+  // preview público (GLOBAL)
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -62,7 +65,6 @@ export default function Landing() {
     } catch {
       setMe(null);
     } finally {
-      // ✅ token es la fuente de verdad para rutas protegidas
       setIsAuthed(Boolean(getLocalToken()));
     }
   }
@@ -71,10 +73,19 @@ export default function Landing() {
     setErr("");
     setLoading(true);
     try {
-      const data = await api.autos.publicList(); // público
-      const list = Array.isArray(data) ? data : data?.items || [];
-      const publicList = list.filter((a) => (a.estado || "disponible") === "disponible");
-      setItems(publicList);
+      // ✅ LANDING = VISTA GLOBAL
+      // GET /publicar -> backend devuelve solo status='aprobado'
+      const resp = await api.publicar.listPublic({ limit: 24 }); // sin group
+
+      // backend: { ok:true, data:[...] }
+      const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
+
+      const mapped = list.map((row) => ({
+        ...row,
+        _data: row?.data && typeof row.data === "object" ? row.data : {},
+      }));
+
+      setItems(mapped);
     } catch (e) {
       setErr(e?.message || "No se pudieron cargar publicaciones");
       setItems([]);
@@ -86,33 +97,45 @@ export default function Landing() {
   useEffect(() => {
     loadMe();
     loadPublic();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return items.slice(0, 6);
-    return items
-      .filter((x) =>
-        `${x.marca || ""} ${x.modelo || ""} ${x.titulo || ""} ${x.descripcion || ""}`
-          .toLowerCase()
-          .includes(s)
-      )
+    const base = items;
+
+    if (!s) return base.slice(0, 6);
+
+    return base
+      .filter((row) => {
+        const p = row._data || {};
+        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${
+          p.modelo || ""
+        } ${p.nombre || ""} ${row.group_id || ""}`;
+        return haystack.toLowerCase().includes(s);
+      })
       .slice(0, 6);
   }, [items, q]);
 
+  // ✅ NUEVAS RUTAS (catálogo por grupo)
   function goCatalogo() {
     nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
-  // ✅ Publicar directo al FORM del grupo actual
+  // ✅ NUEVAS RUTAS (publicar dinámico por categoría)
   function goPublicar() {
     if (!getLocalToken()) return nav("/login");
-    nav(`/publicar/${encodeURIComponent(group)}`);
+    nav("/publicar"); // selector general
+  }
+  function goPublicarGroup(groupId = group) {
+    if (!getLocalToken()) return nav("/login");
+    nav(`/publicar/${encodeURIComponent(groupId)}`);
   }
 
+  // ✅ NUEVAS RUTAS (inventario)
   function goInventario() {
     if (!getLocalToken()) return nav("/login");
-    nav("/perfil/inventario");
+    nav("/inventario");
   }
 
   return (
@@ -137,6 +160,14 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goPublicar}>
                     Publicar
                   </button>
+                  <button
+                    className="lp-btn lp-btn-ghost"
+                    type="button"
+                    onClick={() => goPublicarGroup(group)}
+                    title={`Publicar en ${groupLabel}`}
+                  >
+                    Publicar en {groupLabel}
+                  </button>
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goInventario}>
                     Inventario
                   </button>
@@ -146,17 +177,16 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/login")}>
                     Iniciar sesión
                   </button>
-                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/register")}>
+                  <button
+                    className="lp-btn lp-btn-ghost"
+                    type="button"
+                    onClick={() => nav("/register")}
+                  >
                     Crear cuenta
                   </button>
                 </>
               )}
             </div>
-
-            {/* opcional: debug */}
-            {/* <div style={{ opacity: 0.7, marginTop: 8, fontSize: 12 }}>
-              authed: {String(isAuthed)} • token: {getLocalToken() ? "sí" : "no"} • me: {me ? "sí" : "no"}
-            </div> */}
           </div>
         </section>
 
@@ -177,7 +207,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* PREVIEW PÚBLICO */}
+        {/* PREVIEW PÚBLICO GLOBAL */}
         <section className="lp-section" id="market">
           <div className="lp-section-head">
             <h2>Publicaciones disponibles</h2>
@@ -192,10 +222,14 @@ export default function Landing() {
               </button>
 
               {isAuthed ? (
-                // ✅ Directo al formulario
-                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
-                  + Publicar
-                </button>
+                <>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                    + Publicar
+                  </button>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={() => goPublicarGroup(group)}>
+                    + Publicar en {groupLabel}
+                  </button>
+                </>
               ) : (
                 <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Publicar (crear cuenta)
@@ -235,9 +269,14 @@ export default function Landing() {
             <div className="lp-empty">
               <p>No hay publicaciones disponibles todavía.</p>
               {isAuthed ? (
-                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
-                  Publicar la primera
-                </button>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                    Publicar la primera
+                  </button>
+                  <button className="lp-btn lp-btn-primary" type="button" onClick={() => goPublicarGroup(group)}>
+                    Publicar en {groupLabel}
+                  </button>
+                </div>
               ) : (
                 <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Crear cuenta
@@ -246,68 +285,13 @@ export default function Landing() {
             </div>
           ) : (
             <div className="lp-cards">
-              {filtered.map((a) => {
-                const imgSrc = a?.foto_url || a?.imagenes?.[0] || "";
-                const title = a?.titulo || `${a?.marca || "Publicación"} ${a?.modelo || ""}`.trim();
-
-                return (
-                  <article className="lp-card" key={a.id}>
-                    <div className={`lp-card-img ${!imgSrc ? "lp-card-img--placeholder" : ""}`}>
-                      {imgSrc ? (
-                        <img
-                          src={imgSrc}
-                          alt={title}
-                          className="lp-card-img__img"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <>
-                          <div className="lp-card-img__brand">
-                            SELECTA<span>PLAZA</span>
-                          </div>
-                          <div className="lp-card-img__meta">
-                            <span>{a.marca || "Item"}</span>
-                            <span className="lp-dot" />
-                            <span>{a.modelo || "—"}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="lp-card-body">
-                      <div className="lp-card-head">
-                        <div>
-                          <div className="lp-card-title">
-                            {a.marca} <span>{a.modelo}</span>
-                          </div>
-
-                          <div className="lp-card-meta">
-                            <span>{a.anio ?? "—"}</span>
-                            <span className="lp-dot" />
-                            <span>
-                              {a.precio == null ? "—" : `$${Number(a.precio).toLocaleString("es-MX")}`}
-                            </span>
-                          </div>
-                        </div>
-
-                        {a.estado && (
-                          <span className={`lp-badge lp-badge-${a.estado || "disponible"}`}>
-                            {a.estado || "disponible"}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="lp-desc">{a.descripcion || "Sin descripción."}</p>
-
-                      <div className="lp-card-foot">
-                        <button className="lp-btn lp-btn-ghost" type="button" onClick={goCatalogo}>
-                          Ver en catálogo
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {filtered.map((row) => (
+                <PublicationCard
+                  key={row.id}
+                  row={row}
+                  onViewCatalog={() => nav(`/catalogo?group=${encodeURIComponent(row.group_id || group)}`)}
+                />
+              ))}
             </div>
           )}
         </section>

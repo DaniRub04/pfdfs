@@ -1,6 +1,9 @@
 /* =========================================================
    LANDING.CSS (Retro/Vintage Neon vibe - vibrante y moderno)
    Clases usadas: .lp-*
+   ✅ Actualizado: cards más pro, imagen con aspect-ratio,
+      grid estable (no se estira si hay 1 item), hover premium,
+      overlay elegante en imágenes.
    ========================================================= */
 
 :root{
@@ -331,31 +334,49 @@ body{
 }
 
 /* ------------------------------
-   MARKET CARDS
+   MARKET CARDS (✅ actualizado)
 ------------------------------ */
 .lp-cards{
   display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-  gap: 14px;
+  /* ✅ evita que 1 sola card se estire a todo el ancho */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
 }
 
 /* Card sin padding (la imagen queda pegada al borde) */
 .lp-card{
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 0;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  box-shadow: 0 12px 30px rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.05);
   overflow: hidden;
+  transition: transform .20s ease, box-shadow .20s ease, border-color .20s ease;
 }
 
-/* Imagen con altura estable */
+.lp-card:hover{
+  transform: translateY(-6px);
+  border-color: rgba(45,212,191,0.28);
+  box-shadow: 0 20px 50px rgba(0,0,0,.45);
+}
+
+/* ✅ Imagen con proporción fija (NO se deforma) */
 .lp-card-img{
   width: 100%;
-  height: 240px;
+  aspect-ratio: 4 / 3;
   position: relative;
   overflow: hidden;
   display: block;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Overlay elegante (queda pro) */
+.lp-card-img::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.55), transparent 65%);
+  pointer-events: none;
 }
 
 /* Placeholder (solo si NO hay foto) */
@@ -445,13 +466,13 @@ body{
 
 .lp-skeleton-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
   margin-top: 12px;
 }
 .lp-skeleton{
-  height: 130px;
-  border-radius: 16px;
+  height: 180px;
+  border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.04);
 }
@@ -522,18 +543,14 @@ body{
 @media (max-width: 900px){
   .lp-model-grid{ grid-template-columns: 1fr; }
   .lp-user-mail{ display:none; }
-  .lp-card-img{ height: 220px; }
+  .lp-card-img{ aspect-ratio: 16 / 10; }
 }
 
-/* imagen real en cards del landing */
-.lp-card-img {
-  position: relative;
-  overflow: hidden;
-}
-
-.lp-card-img__img {
+/* imagen real en cards del landing (✅ actualizado) */
+.lp-card-img__img{
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
+  object-position: center;
 }

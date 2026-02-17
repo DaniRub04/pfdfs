@@ -24,9 +24,10 @@ router.post("/register", async (req, res, next) => {
       return res.status(400).json({ ok: false, message: "Faltan campos" });
     }
 
-    const exists = await pool.query("SELECT 1 FROM public.users WHERE email=$1", [
-      email,
-    ]);
+    const exists = await pool.query(
+      "SELECT 1 FROM public.users WHERE email=$1",
+      [email]
+    );
     if (exists.rows.length) {
       return res
         .status(409)
@@ -42,14 +43,14 @@ router.post("/register", async (req, res, next) => {
     // ✅ Si NO se requiere verificación, lo marcamos verified=true desde el inicio
     const verifiedOnCreate = REQUIRE_EMAIL_VERIFICATION ? false : true;
 
-    // ✅ OJO:
-    // En Supabase, instance_id existe en auth.users, NO en public.users.
-    // Aquí trabajamos con public.users, así que usamos su PK: id.
+    // ✅ IMPORTANTE:
+    // Tu DB usa users.id BIGINT, así que NO insertamos id.
+    // Dejamos que la BD (identity/serial) lo asigne.
     const { rows } = await pool.query(
-      `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, nombre, email, creado_en, verified`,
-      [nombre, email, password_hash, verifiedOnCreate, verify_token, verify_expires]
+      `INSERT INTO public.users (nombre, email, password_hash, verified, verify_token, verify_expires, role)
+       VALUES ($1,$2,$3,$4,$5,$6, COALESCE($7, 'user'))
+       RETURNING id, nombre, email, creado_en, verified, role`,
+      [nombre, email, password_hash, verifiedOnCreate, verify_token, verify_expires, "user"]
     );
 
     // ✅ Si NO se requiere verificación, ya no mandamos correo
@@ -57,10 +58,11 @@ router.post("/register", async (req, res, next) => {
       return res.status(201).json({
         ok: true,
         user: {
-          id: rows[0].id,
+          id: String(rows[0].id),
           nombre: rows[0].nombre,
           email: rows[0].email,
           verified: rows[0].verified,
+          role: rows[0].role || "user",
           creado_en: rows[0].creado_en,
         },
         message: "Cuenta creada correctamente.",
@@ -86,10 +88,11 @@ router.post("/register", async (req, res, next) => {
     return res.status(201).json({
       ok: true,
       user: {
-        id: rows[0].id,
+        id: String(rows[0].id),
         nombre: rows[0].nombre,
         email: rows[0].email,
         verified: rows[0].verified,
+        role: rows[0].role || "user",
         creado_en: rows[0].creado_en,
       },
       message: sent
@@ -142,9 +145,9 @@ router.post("/login", async (req, res, next) => {
       return res.status(400).json({ ok: false, message: "Faltan credenciales" });
     }
 
-    // ✅ Traemos id (PK de public.users) para firmarlo en el JWT
+    // ✅ Traemos role para admin
     const { rows } = await pool.query(
-      `SELECT id, nombre, email, password_hash, verified
+      `SELECT id, nombre, email, password_hash, verified, role
        FROM public.users
        WHERE email=$1`,
       [email]
@@ -168,9 +171,16 @@ router.post("/login", async (req, res, next) => {
       });
     }
 
-    // ✅ id = public.users.id
+    const role = user.role || "user";
+
+    // ✅ JWT incluye role (clave para Admin Panel)
     const token = jwt.sign(
-      { id: user.id, email: user.email, nombre: user.nombre },
+      {
+        id: String(user.id), // BIGINT -> string
+        email: user.email,
+        nombre: user.nombre,
+        role,
+      },
       env.JWT_SECRET,
       { expiresIn: "2h" }
     );
@@ -179,10 +189,11 @@ router.post("/login", async (req, res, next) => {
       ok: true,
       token,
       user: {
-        id: user.id,
+        id: String(user.id),
         nombre: user.nombre,
         email: user.email,
         verified: user.verified,
+        role,
       },
     });
   } catch (e) {

@@ -6,6 +6,9 @@ import App from "./App.jsx";
 import { theme } from "./theme";
 import "./index.css";
 
+// ✅ Nota: En @mui/x-data-grid v8 NO se importa grid.css manualmente.
+// (Esa ruta no existe y rompe el build en Vercel)
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
