@@ -19,6 +19,11 @@ function normalizeGroup(v) {
   return String(v ?? "").trim().toLowerCase();
 }
 
+function toSafeLimit(limitRaw, def = 20, max = 200) {
+  const n = Number(limitRaw);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, max) : def;
+}
+
 /**
  * GET /publicar
  * Público: lista publicaciones APROBADAS (landing/catálogo)
@@ -30,8 +35,7 @@ export async function listarPublicaciones(req, res, next) {
     const groupRaw = req.query.group;
     const group = groupRaw ? normalizeGroup(groupRaw) : null;
 
-    const limitRaw = req.query.limit;
-    const limit = limitRaw ? Number(limitRaw) : 20;
+    const limit = toSafeLimit(req.query.limit, 20, 200);
 
     if (group && !VALID_GROUPS.has(group)) {
       return res.status(400).json({ ok: false, message: "group no válido", group });
@@ -39,7 +43,7 @@ export async function listarPublicaciones(req, res, next) {
 
     const publicaciones = await listPublications({
       group,
-      limit: Number.isFinite(limit) ? limit : 20,
+      limit,
     });
 
     return res.json({ ok: true, data: publicaciones });
@@ -113,8 +117,7 @@ export async function listarMisPublicaciones(req, res, next) {
     const groupRaw = req.query.group;
     const group = groupRaw ? normalizeGroup(groupRaw) : null;
 
-    const limitRaw = req.query.limit;
-    const limit = limitRaw ? Number(limitRaw) : 50;
+    const limit = toSafeLimit(req.query.limit, 50, 200);
 
     if (group && !VALID_GROUPS.has(group)) {
       return res.status(400).json({ ok: false, message: "group no válido", group });
@@ -123,7 +126,7 @@ export async function listarMisPublicaciones(req, res, next) {
     const publicaciones = await listMyPublications({
       userId,
       group,
-      limit: Number.isFinite(limit) ? limit : 50,
+      limit,
     });
 
     return res.json({ ok: true, data: publicaciones });

@@ -9,13 +9,28 @@ function normalizeGroup(group) {
   return String(group ?? "").trim().toLowerCase();
 }
 
-function toSafeLimit(limit, def = 12, max = 100) {
+// ✅ unifica límites (máx 200 para que coincida con tu UI)
+function toSafeLimit(limit, def = 20, max = 200) {
   const lim = Number(limit);
   return Number.isFinite(lim) && lim > 0 ? Math.min(lim, max) : def;
 }
 
 function assertObject(data) {
   return data && typeof data === "object" && !Array.isArray(data);
+}
+
+// ✅ por si data llegara como string (seguro extra)
+function safeParseJson(v) {
+  if (!v) return {};
+  if (typeof v === "object") return v;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }
 
 /**
@@ -61,7 +76,9 @@ export async function createPublication({ group, data, userId }) {
 
   try {
     const { rows } = await pool.query(q, values);
-    return rows[0];
+    const row = rows[0];
+    if (!row) return null;
+    return { ...row, data: safeParseJson(row.data) };
   } catch (e) {
     console.error("DB createPublication error:", {
       message: e.message,
@@ -78,10 +95,10 @@ export async function createPublication({ group, data, userId }) {
  * Lista publicaciones públicas (landing/catálogo)
  * - Solo devuelve status = 'aprobado'
  * - group: null = todas
- * - limit: default 12 (máx 100)
+ * - limit: default 20 (máx 200)
  */
-export async function listPublications({ group = null, limit = 12 }) {
-  const safeLimit = toSafeLimit(limit, 12, 100);
+export async function listPublications({ group = null, limit = 20 }) {
+  const safeLimit = toSafeLimit(limit, 20, 200);
 
   const groupNormalized =
     group && String(group).trim() ? normalizeGroup(group) : null;
@@ -106,7 +123,7 @@ export async function listPublications({ group = null, limit = 12 }) {
 
   try {
     const { rows } = await pool.query(q, values);
-    return rows;
+    return (rows || []).map((r) => ({ ...r, data: safeParseJson(r.data) }));
   } catch (e) {
     console.error("DB listPublications error:", {
       message: e.message,
@@ -164,7 +181,7 @@ export async function listMyPublications({ userId, group = null, limit = 50 }) {
 
   try {
     const { rows } = await pool.query(q, values);
-    return rows;
+    return (rows || []).map((r) => ({ ...r, data: safeParseJson(r.data) }));
   } catch (e) {
     console.error("DB listMyPublications error:", {
       message: e.message,
@@ -216,7 +233,8 @@ export async function updateMyPublication({ id, userId, data }) {
 
   try {
     const { rows } = await pool.query(q, values);
-    return rows[0] || null;
+    const row = rows[0] || null;
+    return row ? { ...row, data: safeParseJson(row.data) } : null;
   } catch (e) {
     console.error("DB updateMyPublication error:", {
       message: e.message,
@@ -273,7 +291,8 @@ export async function deleteMyPublication({ id, userId }) {
 
 /**
  * 🔒 Cambiar status (pendiente/aprobado/rechazado)
- * ⚠️ Idealmente esto debería ser admin; por ahora lo permitimos al dueño.
+ * ⚠️ Nota: tu router ya dice que esto se eliminó para el usuario.
+ * Si ya no lo usas, puedes borrarlo luego.
  */
 export async function setPublicationStatus({ id, userId, status }) {
   if (!id) {
@@ -312,7 +331,8 @@ export async function setPublicationStatus({ id, userId, status }) {
 
   try {
     const { rows } = await pool.query(q, [st, id, userIdStr]);
-    return rows[0] || null;
+    const row = rows[0] || null;
+    return row ? { ...row, data: safeParseJson(row.data) } : null;
   } catch (e) {
     console.error("DB setPublicationStatus error:", {
       message: e.message,

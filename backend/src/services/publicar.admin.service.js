@@ -1,79 +1,444 @@
-// backend/src/services/publicar.admin.service.js
-import { pool } from "../db/pool.js";
+// frontend/src/pages/AdminPublicaciones.jsx
+import { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  Box,
+  Button,
+  Chip,
+  Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import { api } from "../services/api";
+import { GROUPS } from "../config/catalogoConfig";
 
-function toSafeLimit(limit, def = 20, max = 200) {
-  const n = Number(limit);
-  return Number.isFinite(n) && n > 0 ? Math.min(n, max) : def;
+const STATUS_OPTIONS = [
+  { id: "pendiente", label: "PENDIENTE" },
+  { id: "aprobado", label: "APROBADO" },
+  { id: "rechazado", label: "RECHAZADO" },
+];
+
+function statusChip(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "aprobado") return <Chip label="APROBADO" color="success" size="small" />;
+  if (s === "rechazado") return <Chip label="RECHAZADO" color="error" size="small" />;
+  return <Chip label="PENDIENTE" color="warning" size="small" />;
 }
-function toSafeOffset(offset) {
-  const n = Number(offset);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
+
+/**
+ * Compat MUI X:
+ * - Firma vieja: (params) => params.row
+ * - Firma nueva (v8): (value, row) => row
+ */
+function pickRow(args0, args1) {
+  // v8: (value, row)
+  if (args1 && typeof args1 === "object") return args1;
+  // vieja: (params)
+  if (args0 && typeof args0 === "object" && args0.row) return args0.row;
+  return null;
 }
-function norm(v) {
-  return String(v ?? "").trim().toLowerCase();
+
+function safeJson(v) {
+  if (!v) return {};
+  if (typeof v === "object") return v;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }
 
-export async function adminListPublications({
-  status = "pendiente",
-  group = null,
-  limit = 20,
-  offset = 0,
-}) {
-  const st = norm(status);
-  const allowed = new Set(["pendiente", "aprobado", "rechazado"]);
-  const safeStatus = allowed.has(st) ? st : "pendiente";
+/**
+ * ✅ Tu api.request() ya normaliza {ok,data} => devuelve data directo.
+ * En backend ahora mandamos: { ok:true, data:{ total, rows } }
+ * Entonces api.publicar.adminList(...) devuelve: { total, rows }
+ */
+function normalizeAdminListResponse(resp) {
+  if (Array.isArray(resp)) return { total: resp.length, rows: resp };
 
-  const g = group && String(group).trim() ? norm(group) : null;
-  const safeLimit = toSafeLimit(limit, 20, 200);
-  const safeOffset = toSafeOffset(offset);
+  if (resp && typeof resp === "object") {
+    const rows =
+      Array.isArray(resp.rows) ? resp.rows :
+      Array.isArray(resp.items) ? resp.items :
+      Array.isArray(resp.data) ? resp.data :
+      [];
 
-  const whereParts = ["status = $1"];
-  const values = [safeStatus];
-  let idx = values.length + 1;
-
-  if (g) {
-    whereParts.push(`group_id = $${idx}`);
-    values.push(g);
-    idx++;
+    const total = Number(resp.total ?? resp.count ?? resp.rowCount ?? rows.length) || rows.length;
+    return { total, rows };
   }
 
-  const where = `where ${whereParts.join(" and ")}`;
-
-  const qTotal = `select count(*)::int as total from publicaciones ${where}`;
-  const qRows = `
-    select id, group_id, data, user_id, status, created_at
-    from publicaciones
-    ${where}
-    order by created_at desc
-    limit $${idx} offset $${idx + 1}
-  `;
-
-  const valuesRows = [...values, safeLimit, safeOffset];
-
-  const [{ rows: totalRows }, { rows }] = await Promise.all([
-    pool.query(qTotal, values),
-    pool.query(qRows, valuesRows),
-  ]);
-
-  return { total: totalRows?.[0]?.total ?? 0, rows };
+  return { total: 0, rows: [] };
 }
 
-export async function adminSetStatus({ id, status }) {
-  const st = norm(status);
-  const allowed = new Set(["pendiente", "aprobado", "rechazado"]);
-  if (!allowed.has(st)) {
-    const err = new Error("status inválido");
-    err.status = 400;
-    throw err;
+export default function AdminPublicaciones() {
+  const [status, setStatus] = useState("pendiente");
+  const [group, setGroup] = useState("");
+  const [q, setQ] = useState("");
+
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
+  const [rowsRaw, setRowsRaw] = useState([]);
+  const [rowCount, setRowCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  const [stats, setStats] = useState({ pendiente: 0, aprobado: 0, rechazado: 0 });
+
+  const loadStats = useCallback(async () => {
+    try {
+      const [p, a, r] = await Promise.all([
+        api.publicar.adminList({ status: "pendiente", limit: 1, offset: 0 }),
+        api.publicar.adminList({ status: "aprobado", limit: 1, offset: 0 }),
+        api.publicar.adminList({ status: "rechazado", limit: 1, offset: 0 }),
+      ]);
+
+      const P = normalizeAdminListResponse(p);
+      const A = normalizeAdminListResponse(a);
+      const R = normalizeAdminListResponse(r);
+
+      setStats({
+        pendiente: P.total ?? 0,
+        aprobado: A.total ?? 0,
+        rechazado: R.total ?? 0,
+      });
+    } catch {
+      setStats((s) => s);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    setErr("");
+    setLoading(true);
+    try {
+      const resp = await api.publicar.adminList({
+        status,
+        group: group || undefined,
+        limit: pageSize,
+        offset: page * pageSize,
+      });
+
+      const norm = normalizeAdminListResponse(resp);
+
+      // ✅ asegura data como objeto (por si algún row viniera con string)
+      const cleanRows = (norm.rows || []).map((r) => ({
+        ...r,
+        data: safeJson(r?.data),
+      }));
+
+      setRowsRaw(cleanRows);
+      setRowCount(norm.total || 0);
+    } catch (e) {
+      setErr(e?.message || "No se pudo cargar moderación");
+      setRowsRaw([]);
+      setRowCount(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [status, group, page, pageSize]);
+
+  useEffect(() => {
+    load();
+    loadStats();
+  }, [load, loadStats]);
+
+  async function changeStatus(id, nextStatus) {
+    try {
+      await api.publicar.adminSetStatus(id, nextStatus);
+      await load();
+      await loadStats();
+      alert(`Publicación ${String(nextStatus).toUpperCase()} correctamente ✅`);
+    } catch (e) {
+      alert(e?.message || "No se pudo cambiar el estado");
+    }
   }
 
-  const q = `
-    update publicaciones
-    set status = $1
-    where id = $2
-    returning id, group_id, data, user_id, status, created_at
-  `;
+  const rows = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return rowsRaw;
 
-  const { rows } = await pool.query(q, [st, id]);
-  return rows[0] || null;
+    return rowsRaw.filter((r) => {
+      const d = r?.data || {};
+      const user = r?.user || {};
+      const text = `${d.titulo || ""} ${d.marca || ""} ${d.modelo || ""} ${d.descripcion || ""} ${
+        d.empresa || ""
+      } ${d.nombreEmpresa || ""} ${user.nombre || ""} ${user.email || ""}`.toLowerCase();
+      return text.includes(term);
+    });
+  }, [rowsRaw, q]);
+
+  const columns = useMemo(
+    () => [
+      { field: "id", headerName: "ID", width: 110 },
+
+      {
+        field: "group_id",
+        headerName: "Grupo",
+        width: 150,
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          return row?.group_id || "—";
+        },
+      },
+
+      {
+        field: "titulo",
+        headerName: "Título",
+        flex: 1,
+        minWidth: 220,
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          const d = row?.data || {};
+          return d.titulo || `${d.marca || ""} ${d.modelo || ""}`.trim() || "—";
+        },
+      },
+
+      {
+        field: "creador",
+        headerName: "User",
+        width: 240,
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          const u = row?.user || {};
+          // muestra lo más útil
+          return u.email || u.nombre || (row?.user_id ? String(row.user_id).slice(0, 8) + "…" : "—");
+        },
+      },
+
+      {
+        field: "status",
+        headerName: "Estado",
+        width: 140,
+        renderCell: (params) => statusChip(params.value),
+      },
+
+      {
+        field: "created_at",
+        headerName: "Fecha",
+        width: 140,
+        valueGetter: (a0, a1) => {
+          const row = pickRow(a0, a1);
+          return row?.created_at ? String(row.created_at).slice(0, 10) : "—";
+        },
+      },
+
+      {
+        field: "acciones",
+        headerName: "Acciones",
+        width: 320,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          const id = params.row?.id;
+          const st = String(params.row?.status || "").toLowerCase();
+
+          return (
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              {st !== "aprobado" && (
+                <Button size="small" variant="outlined" onClick={() => changeStatus(id, "aprobado")}>
+                  Aprobar
+                </Button>
+              )}
+
+              {st !== "rechazado" && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={() => changeStatus(id, "rechazado")}
+                >
+                  Rechazar
+                </Button>
+              )}
+
+              {st !== "pendiente" && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => changeStatus(id, "pendiente")}
+                >
+                  Pendiente
+                </Button>
+              )}
+            </Box>
+          );
+        },
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  return (
+    <Box>
+      <Typography variant="h4" sx={{ fontWeight: 900, mb: 2 }}>
+        Admin Panel — Moderación de publicaciones
+      </Typography>
+
+      <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
+        <Paper sx={{ p: 2, borderRadius: 3, flex: 1, minWidth: 220 }}>
+          <Typography sx={{ fontWeight: 900 }}>Pendientes</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: "warning.main" }}>
+            {stats.pendiente}
+          </Typography>
+        </Paper>
+
+        <Paper sx={{ p: 2, borderRadius: 3, flex: 1, minWidth: 220 }}>
+          <Typography sx={{ fontWeight: 900 }}>Aprobadas</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: "success.main" }}>
+            {stats.aprobado}
+          </Typography>
+        </Paper>
+
+        <Paper sx={{ p: 2, borderRadius: 3, flex: 1, minWidth: 220 }}>
+          <Typography sx={{ fontWeight: 900 }}>Rechazadas</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: "error.main" }}>
+            {stats.rechazado}
+          </Typography>
+        </Paper>
+      </Box>
+
+      <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+          <FormControl size="small" sx={{ minWidth: 190 }}>
+            <InputLabel id="st">Estado</InputLabel>
+            <Select
+              labelId="st"
+              label="Estado"
+              value={status}
+              onChange={(e) => {
+                setPage(0);
+                setStatus(e.target.value);
+              }}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <MenuItem key={s.id} value={s.id}>
+                  {s.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel id="gr">Categoría</InputLabel>
+            <Select
+              labelId="gr"
+              label="Categoría"
+              value={group}
+              onChange={(e) => {
+                setPage(0);
+                setGroup(e.target.value);
+              }}
+            >
+              <MenuItem value="">Todas</MenuItem>
+              {(GROUPS || []).map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.title ?? g.label ?? g.name ?? g.id}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            size="small"
+            label="Buscar (local)"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            sx={{ minWidth: 260, flex: 1 }}
+          />
+
+          <Button
+            variant="contained"
+            onClick={() => {
+              load();
+              loadStats();
+            }}
+          >
+            Recargar
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setStatus("pendiente");
+              setGroup("");
+              setQ("");
+              setPage(0);
+              setPageSize(10);
+            }}
+          >
+            Reset
+          </Button>
+        </Box>
+
+        <Divider sx={{ my: 2 }} />
+
+        {err && (
+          <Typography sx={{ color: "error.main", fontWeight: 900, mb: 1 }}>
+            ❌ {err}
+          </Typography>
+        )}
+
+        <Box sx={{ height: "70vh", minHeight: 560, width: "100%" }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            loading={loading}
+            getRowId={(r) => r?.id ?? `${r?.group_id ?? "x"}-${r?.created_at ?? Math.random()}`}
+            rowCount={rowCount}
+            paginationMode="server"
+            paginationModel={{ page, pageSize }}
+            onPaginationModelChange={(m) => {
+              setPage(m.page);
+              setPageSize(m.pageSize);
+            }}
+            pageSizeOptions={[10, 20, 50]}
+            disableRowSelectionOnClick
+            sx={{
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.03)",
+              color: "rgba(255,255,255,0.9)",
+              "& .MuiDataGrid-columnHeaders": {
+                bgcolor: "rgba(255,255,255,0.05)",
+                borderBottom: "1px solid rgba(255,255,255,0.12)",
+                color: "rgba(255,255,255,0.92)",
+              },
+              "& .MuiDataGrid-columnHeaderTitle": {
+                fontWeight: 900,
+              },
+              "& .MuiDataGrid-cell": {
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.9)",
+              },
+              "& .MuiDataGrid-footerContainer": {
+                borderTop: "1px solid rgba(255,255,255,0.12)",
+                bgcolor: "rgba(255,255,255,0.03)",
+                color: "rgba(255,255,255,0.85)",
+              },
+              "& .MuiTablePagination-root": {
+                color: "rgba(255,255,255,0.85)",
+              },
+              "& .MuiDataGrid-iconSeparator": {
+                opacity: 0.4,
+              },
+            }}
+          />
+        </Box>
+
+        <Typography sx={{ opacity: 0.7, fontSize: 12, mt: 1 }}>
+          Nota: el buscador es local (sobre la página actual). La paginación viene del backend.
+        </Typography>
+      </Paper>
+    </Box>
+  );
 }

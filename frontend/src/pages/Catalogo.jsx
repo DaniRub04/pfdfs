@@ -31,6 +31,36 @@ function toNumberOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+function safeJson(v) {
+  if (!v) return {};
+  if (typeof v === "object") return v;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+/**
+ * ✅ listPublic() con tu api.js normalmente regresa un array directo
+ * porque request() colapsa {ok,data} => data.
+ * Aun así, esta función tolera formatos alternos.
+ */
+function normalizePublicList(resp) {
+  if (Array.isArray(resp)) return resp;
+
+  if (resp && typeof resp === "object") {
+    if (Array.isArray(resp.data)) return resp.data;
+    if (Array.isArray(resp.items)) return resp.items;
+    if (Array.isArray(resp.rows)) return resp.rows;
+  }
+
+  return [];
+}
+
 export default function Catalogo() {
   const [sp, setSp] = useSearchParams();
 
@@ -53,15 +83,14 @@ export default function Catalogo() {
     setErr("");
     setLoading(true);
     try {
-      // ✅ Catálogo sí es por grupo
       const resp = await api.publicar.listPublic({ group, limit: 200 });
 
-      // backend: { ok:true, data:[...] }
-      const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
+      const list = normalizePublicList(resp);
 
       const mapped = list.map((row) => ({
         ...row,
-        _data: row?.data && typeof row.data === "object" ? row.data : {},
+        // ✅ data puede venir como JSON string o como objeto
+        _data: safeJson(row?.data),
       }));
 
       setItems(mapped);
@@ -114,10 +143,16 @@ export default function Catalogo() {
 
     // orden
     if (order === "menor") {
-      list.sort((a, b) => (toNumberOrNull(a._data?.precio) ?? 0) - (toNumberOrNull(b._data?.precio) ?? 0));
+      list.sort(
+        (a, b) =>
+          (toNumberOrNull(a._data?.precio) ?? 0) - (toNumberOrNull(b._data?.precio) ?? 0)
+      );
     }
     if (order === "mayor") {
-      list.sort((a, b) => (toNumberOrNull(b._data?.precio) ?? 0) - (toNumberOrNull(a._data?.precio) ?? 0));
+      list.sort(
+        (a, b) =>
+          (toNumberOrNull(b._data?.precio) ?? 0) - (toNumberOrNull(a._data?.precio) ?? 0)
+      );
     }
     // "recientes": backend ya ordena por created_at desc
 
@@ -279,7 +314,7 @@ export default function Catalogo() {
           )}
 
           <Typography sx={{ opacity: 0.6, fontSize: 12, mt: 2 }}>
-            Vista conectada al endpoint público: <b>/publicar?group=...&limit=...</b>
+            Vista conectada al endpoint público: <b>/publicar?group=...&limit=...</b> (solo aprobadas)
           </Typography>
         </Paper>
       </Box>
