@@ -36,6 +36,19 @@ function getLocalToken() {
   );
 }
 
+function safeJson(v) {
+  if (!v) return {};
+  if (typeof v === "object") return v;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
 export default function Landing() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -77,12 +90,12 @@ export default function Landing() {
       // GET /publicar -> backend devuelve solo status='aprobado'
       const resp = await api.publicar.listPublic({ limit: 24 }); // sin group
 
-      // backend: { ok:true, data:[...] }
+      // tu api.request() normalmente devuelve data directo si viene {ok,data}
       const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
 
       const mapped = list.map((row) => ({
         ...row,
-        _data: row?.data && typeof row.data === "object" ? row.data : {},
+        _data: safeJson(row?.data),
       }));
 
       setItems(mapped);
@@ -104,6 +117,7 @@ export default function Landing() {
     const s = q.trim().toLowerCase();
     const base = items;
 
+    // ⚠️ Nota: tu landing está limitada a 6 por diseño
     if (!s) return base.slice(0, 6);
 
     return base
@@ -126,10 +140,6 @@ export default function Landing() {
   function goPublicar() {
     if (!getLocalToken()) return nav("/login");
     nav("/publicar"); // selector general
-  }
-  function goPublicarGroup(groupId = group) {
-    if (!getLocalToken()) return nav("/login");
-    nav(`/publicar/${encodeURIComponent(groupId)}`);
   }
 
   // ✅ NUEVAS RUTAS (inventario)
@@ -160,14 +170,8 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goPublicar}>
                     Publicar
                   </button>
-                  <button
-                    className="lp-btn lp-btn-ghost"
-                    type="button"
-                    onClick={() => goPublicarGroup(group)}
-                    title={`Publicar en ${groupLabel}`}
-                  >
-                    Publicar en {groupLabel}
-                  </button>
+
+                  {/* ✅ dejamos el botón de inventario */}
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goInventario}>
                     Inventario
                   </button>
@@ -177,11 +181,7 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/login")}>
                     Iniciar sesión
                   </button>
-                  <button
-                    className="lp-btn lp-btn-ghost"
-                    type="button"
-                    onClick={() => nav("/register")}
-                  >
+                  <button className="lp-btn lp-btn-ghost" type="button" onClick={() => nav("/register")}>
                     Crear cuenta
                   </button>
                 </>
@@ -213,7 +213,12 @@ export default function Landing() {
             <h2>Publicaciones disponibles</h2>
 
             <div className="lp-market-actions">
-              <button className="lp-btn lp-btn-ghost" type="button" onClick={loadPublic} disabled={loading}>
+              <button
+                className="lp-btn lp-btn-ghost"
+                type="button"
+                onClick={loadPublic}
+                disabled={loading}
+              >
                 ↻ Recargar
               </button>
 
@@ -226,9 +231,8 @@ export default function Landing() {
                   <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
                     + Publicar
                   </button>
-                  <button className="lp-btn lp-btn-primary" type="button" onClick={() => goPublicarGroup(group)}>
-                    + Publicar en {groupLabel}
-                  </button>
+
+                  {/* ✅ BOTÓN REMOVIDO: "+ Publicar en Automotriz / {groupLabel}" */}
                 </>
               ) : (
                 <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
@@ -238,8 +242,8 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* buscador del preview */}
-          <div style={{ marginTop: 12 }}>
+          {/* ✅ buscador del preview - mejor separación */}
+          <div style={{ marginTop: 18, marginBottom: 10 }}>
             <input
               type="text"
               placeholder="Buscar en la vista previa…"
@@ -272,9 +276,6 @@ export default function Landing() {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
                     Publicar la primera
-                  </button>
-                  <button className="lp-btn lp-btn-primary" type="button" onClick={() => goPublicarGroup(group)}>
-                    Publicar en {groupLabel}
                   </button>
                 </div>
               ) : (

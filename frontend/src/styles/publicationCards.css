@@ -63,6 +63,7 @@
 }
 
 .lp-card-title{ font-weight: 900; font-size: 16px; }
+
 .lp-card-meta{
   margin-top: 6px;
   font-size: 12px;
@@ -70,6 +71,7 @@
   display:flex;
   align-items:center;
   gap: 8px;
+  flex-wrap: wrap; /* ✅ para que no se encime en pantallas pequeñas */
 }
 
 .lp-dot{
@@ -84,11 +86,46 @@
   opacity: .9;
   line-height: 1.4;
   min-height: 40px;
+  display: -webkit-box;          /* ✅ truncado elegante */
+  -webkit-line-clamp: 3;         /* ✅ 3 líneas */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .lp-card-foot{ margin-top: 12px; }
 
-/* Badges */
+/* ==========================
+   ✅ NUEVO: Detalles extra (PublicationCard actualizado)
+   - .lp-card-details: contenedor
+   - .lp-card-detail: fila label: value
+========================== */
+.lp-card-details{
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.lp-card-detail{
+  font-size: 12px;
+  opacity: .92;
+  display:flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lp-card-detail b{
+  opacity: .95;
+  font-weight: 900;
+}
+
+.lp-card-detail span{
+  opacity: .90;
+  word-break: break-word;
+}
+
+/* ==========================
+   Badges
+========================== */
 .lp-badge{
   padding: 6px 10px;
   border-radius: 999px;
@@ -98,6 +135,7 @@
   background: rgba(255,255,255,0.05);
   white-space: nowrap;
 }
+
 .lp-badge-disponible{
   border-color: rgba(45,212,191,0.45);
   background: rgba(45,212,191,0.14);
@@ -107,6 +145,20 @@
   background: rgba(255,183,3,0.14);
 }
 .lp-badge-vendido{
+  border-color: rgba(255,59,129,0.48);
+  background: rgba(255,59,129,0.14);
+}
+
+/* fallback por si llega otro estado */
+.lp-badge-pendiente{
+  border-color: rgba(255,183,3,0.50);
+  background: rgba(255,183,3,0.14);
+}
+.lp-badge-aprobado{
+  border-color: rgba(45,212,191,0.45);
+  background: rgba(45,212,191,0.14);
+}
+.lp-badge-rechazado{
   border-color: rgba(255,59,129,0.48);
   background: rgba(255,59,129,0.14);
 }
