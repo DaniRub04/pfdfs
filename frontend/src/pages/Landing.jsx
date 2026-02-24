@@ -6,12 +6,6 @@ import PublicationCard from "../components/PublicationCard";
 import "../styles/landing.css";
 import "../styles/publicationCards.css";
 
-const DEMO_MODELS = [
-  { id: "m1", img: "/landing/img/carro1.avif", price: "660,000 MXN", name: "Modelo destacado 1" },
-  { id: "m2", img: "/landing/img/carro2.avif", price: "800,000 MXN", name: "Modelo destacado 2" },
-  { id: "m3", img: "/landing/img/carro3.avif", price: "1,100,000 MXN", name: "Modelo destacado 3" },
-];
-
 // ✅ Grupo/categoría principal (para navegar)
 const GROUP_OPTIONS = [
   { id: "automotriz", label: "Automotriz" },
@@ -181,16 +175,15 @@ export default function Landing() {
         <section className="lp-hero">
           <div className="lp-hero-content">
             <h1>Catálogo por grupos: rápido, claro, confiable.</h1>
+
+            {/* ✅ Texto sin "Enfoque actual: ..." */}
             <p>
-              Explora publicaciones por categoría principal. Enfoque actual: <b>{groupLabel}</b>. Publica y
-              administra tu inventario con una experiencia moderna.
+              Explora publicaciones por categoría principal. Publica y administra tu inventario con una
+              experiencia moderna.
             </p>
 
             <div className="lp-hero-cta">
-              <button className="lp-btn lp-btn-primary" type="button" onClick={goCatalogo}>
-                Explorar {groupLabel}
-              </button>
-
+              {/* ✅ Quitado: botón "Explorar {groupLabel}" */}
               {isAuthed ? (
                 <>
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goPublicar}>
@@ -215,22 +208,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* DESTACADOS (demo visual) */}
-        <section className="lp-section" id="models">
-          <div className="lp-section-head">
-            <h2>Destacados</h2>
-            <p>Vista previa</p>
-          </div>
-
-          <div className="lp-model-grid">
-            {DEMO_MODELS.map((m) => (
-              <div key={m.id} className="lp-model-card">
-                <img src={m.img} alt={m.name} />
-                <div className="lp-price">{m.price}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* ✅ DESTACADOS ELIMINADO */}
 
         {/* PREVIEW PÚBLICO GLOBAL */}
         <section className="lp-section" id="market">
