@@ -3,10 +3,11 @@
    Clases usadas: .lp-*
    ✅ Actualizado: mejoras en layout de acciones + buscador preview,
       evita encimados, flex-wrap, márgenes consistentes.
+   ⚠️ IMPORTANTE: El fondo global ahora vive en styles/theme.css
    ========================================================= */
 
 :root{
-  /* Fondo retro */
+  /* Fondo retro (variables; el fondo real está en theme.css) */
   --bg0: #0b0620;   /* morado profundo */
   --bg1: #0a1636;   /* azul profundo */
   --bg2: #1a0b2e;   /* vino/morado */
@@ -38,24 +39,12 @@
    BASE
 ------------------------------ */
 .lp * { box-sizing: border-box; }
-html, body { height: 100%; }
-
-body{
-  margin: 0;
-  color: var(--text);
-
-  /* 🎛 Fondo retro vibrante */
-  background:
-    radial-gradient(1100px 600px at 12% 12%, rgba(255,59,129,.18), transparent 62%),
-    radial-gradient(900px 520px at 88% 22%, rgba(45,212,191,.18), transparent 62%),
-    radial-gradient(850px 520px at 55% 92%, rgba(255,183,3,.10), transparent 62%),
-    linear-gradient(180deg, var(--bg0), var(--bg1) 55%, var(--bg2));
-}
 
 .lp{
   min-height: 100vh;
   color: #f3f4f6;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+  background: transparent; /* ✅ el fondo global está en theme.css */
 }
 
 /* ------------------------------
@@ -352,12 +341,10 @@ body{
 ------------------------------ */
 .lp-cards{
   display:grid;
-  /* ✅ evita que 1 sola card se estire a todo el ancho */
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 18px;
 }
 
-/* Card sin padding (la imagen queda pegada al borde) */
 .lp-card{
   border-radius: 18px;
   padding: 0;
@@ -373,7 +360,6 @@ body{
   box-shadow: 0 20px 50px rgba(0,0,0,.45);
 }
 
-/* ✅ Imagen con proporción fija (NO se deforma) */
 .lp-card-img{
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -384,7 +370,6 @@ body{
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-/* Overlay elegante (queda pro) */
 .lp-card-img::after{
   content: "";
   position: absolute;
@@ -393,7 +378,6 @@ body{
   pointer-events: none;
 }
 
-/* Placeholder (solo si NO hay foto) */
 .lp-card-img--placeholder{
   background:
     radial-gradient(800px 240px at 20% 20%, rgba(45,212,191,.18), transparent 60%),
@@ -402,7 +386,6 @@ body{
     linear-gradient(180deg, rgba(0,0,0,.35), rgba(255,255,255,.03));
 }
 
-/* Body con padding (solo texto) */
 .lp-card-body{ padding: 14px; }
 
 .lp-card-head{
@@ -560,7 +543,7 @@ body{
   .lp-card-img{ aspect-ratio: 16 / 10; }
 }
 
-/* imagen real en cards del landing (✅ actualizado) */
+/* imagen real en cards del landing */
 .lp-card-img__img{
   width: 100%;
   height: 100%;

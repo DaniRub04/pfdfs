@@ -9,17 +9,20 @@ function normalizeGroup(group) {
   return String(group ?? "").trim().toLowerCase();
 }
 
-// ✅ unifica límites (máx 200 para que coincida con tu UI)
 function toSafeLimit(limit, def = 20, max = 200) {
   const lim = Number(limit);
   return Number.isFinite(lim) && lim > 0 ? Math.min(lim, max) : def;
+}
+
+function toSafeOffset(offset) {
+  const n = Number(offset);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 function assertObject(data) {
   return data && typeof data === "object" && !Array.isArray(data);
 }
 
-// ✅ por si data llegara como string (seguro extra)
 function safeParseJson(v) {
   if (!v) return {};
   if (typeof v === "object") return v;
@@ -34,9 +37,7 @@ function safeParseJson(v) {
 }
 
 /**
- * Crea una publicación en public.publicaciones
- * columnas: group_id (text), data (jsonb), user_id (bigint), status (text), created_at
- * - status por defecto: 'pendiente'
+ * Crea una publicación
  */
 export async function createPublication({ group, data, userId }) {
   if (!group || typeof group !== "string") {
@@ -74,56 +75,69 @@ export async function createPublication({ group, data, userId }) {
 
   const values = [groupNormalized, JSON.stringify(data), userIdStr];
 
-  try {
-    const { rows } = await pool.query(q, values);
-    const row = rows[0];
-    if (!row) return null;
-    return { ...row, data: safeParseJson(row.data) };
-  } catch (e) {
-    console.error("DB createPublication error:", {
-      message: e.message,
-      code: e.code,
-      detail: e.detail,
-      constraint: e.constraint,
-      where: e.where,
-    });
-    throw e;
-  }
+  const { rows } = await pool.query(q, values);
+  const row = rows[0] || null;
+  return row ? { ...row, data: safeParseJson(row.data) } : null;
 }
 
 /**
- * Lista publicaciones públicas (landing/catálogo)
- * - Solo devuelve status = 'aprobado'
+ * ✅ Lista publicaciones públicas (landing/catálogo) CON PAGINACIÓN
+ * - Solo status='aprobado'
  * - group: null = todas
- * - limit: default 20 (máx 200)
+ * - limit/offset
+ *
+ * ✅ Devuelve:
+ * { total, rows, limit, offset, hasMore }
  */
-export async function listPublications({ group = null, limit = 20 }) {
+export async function listPublications({ group = null, limit = 20, offset = 0 }) {
   const safeLimit = toSafeLimit(limit, 20, 200);
+  const safeOffset = toSafeOffset(offset);
 
-  const groupNormalized =
-    group && String(group).trim() ? normalizeGroup(group) : null;
+  const groupNormalized = group && String(group).trim() ? normalizeGroup(group) : null;
 
-  const q = groupNormalized
+  const where = groupNormalized ? `where status='aprobado' and group_id = $1` : `where status='aprobado'`;
+
+  const qTotal = groupNormalized
+    ? `select count(*)::int as total from public.publicaciones ${where}`
+    : `select count(*)::int as total from public.publicaciones ${where}`;
+
+  const qRows = groupNormalized
     ? `
       select id, group_id, data, user_id, status, created_at
       from public.publicaciones
-      where group_id = $1 and status = 'aprobado'
+      ${where}
       order by created_at desc
-      limit $2
+      limit $2 offset $3
     `
     : `
       select id, group_id, data, user_id, status, created_at
       from public.publicaciones
-      where status = 'aprobado'
+      ${where}
       order by created_at desc
-      limit $1
+      limit $1 offset $2
     `;
 
-  const values = groupNormalized ? [groupNormalized, safeLimit] : [safeLimit];
+  const valuesTotal = groupNormalized ? [groupNormalized] : [];
+  const valuesRows = groupNormalized
+    ? [groupNormalized, safeLimit, safeOffset]
+    : [safeLimit, safeOffset];
 
   try {
-    const { rows } = await pool.query(q, values);
-    return (rows || []).map((r) => ({ ...r, data: safeParseJson(r.data) }));
+    const [{ rows: totalRows }, { rows }] = await Promise.all([
+      pool.query(qTotal, valuesTotal),
+      pool.query(qRows, valuesRows),
+    ]);
+
+    const total = totalRows?.[0]?.total ?? 0;
+    const cleanRows = (rows || []).map((r) => ({ ...r, data: safeParseJson(r.data) }));
+
+    return {
+      total: Number(total) || 0,
+      rows: cleanRows,
+      limit: safeLimit,
+      offset: safeOffset,
+      hasMore: safeOffset + cleanRows.length < (Number(total) || 0),
+    };
   } catch (e) {
     console.error("DB listPublications error:", {
       message: e.message,
@@ -136,9 +150,7 @@ export async function listPublications({ group = null, limit = 20 }) {
 }
 
 /**
- * 🔒 Lista MIS publicaciones (perfil)
- * - devuelve todas: pendiente/aprobado/rechazado
- * - limit: default 50 (máx 200)
+ * Lista MIS publicaciones
  */
 export async function listMyPublications({ userId, group = null, limit = 50 }) {
   if (!userId) {
@@ -155,9 +167,7 @@ export async function listMyPublications({ userId, group = null, limit = 50 }) {
   }
 
   const safeLimit = toSafeLimit(limit, 50, 200);
-
-  const groupNormalized =
-    group && String(group).trim() ? normalizeGroup(group) : null;
+  const groupNormalized = group && String(group).trim() ? normalizeGroup(group) : null;
 
   const q = groupNormalized
     ? `
@@ -175,27 +185,12 @@ export async function listMyPublications({ userId, group = null, limit = 50 }) {
       limit $2
     `;
 
-  const values = groupNormalized
-    ? [userIdStr, groupNormalized, safeLimit]
-    : [userIdStr, safeLimit];
+  const values = groupNormalized ? [userIdStr, groupNormalized, safeLimit] : [userIdStr, safeLimit];
 
-  try {
-    const { rows } = await pool.query(q, values);
-    return (rows || []).map((r) => ({ ...r, data: safeParseJson(r.data) }));
-  } catch (e) {
-    console.error("DB listMyPublications error:", {
-      message: e.message,
-      code: e.code,
-      detail: e.detail,
-      where: e.where,
-    });
-    throw e;
-  }
+  const { rows } = await pool.query(q, values);
+  return (rows || []).map((r) => ({ ...r, data: safeParseJson(r.data) }));
 }
 
-/**
- * 🔒 Editar MI publicación (solo data)
- */
 export async function updateMyPublication({ id, userId, data }) {
   if (!id) {
     const err = new Error("id requerido");
@@ -229,26 +224,11 @@ export async function updateMyPublication({ id, userId, data }) {
     returning id, group_id, data, user_id, status, created_at
   `;
 
-  const values = [JSON.stringify(data), id, userIdStr];
-
-  try {
-    const { rows } = await pool.query(q, values);
-    const row = rows[0] || null;
-    return row ? { ...row, data: safeParseJson(row.data) } : null;
-  } catch (e) {
-    console.error("DB updateMyPublication error:", {
-      message: e.message,
-      code: e.code,
-      detail: e.detail,
-      where: e.where,
-    });
-    throw e;
-  }
+  const { rows } = await pool.query(q, [JSON.stringify(data), id, userIdStr]);
+  const row = rows[0] || null;
+  return row ? { ...row, data: safeParseJson(row.data) } : null;
 }
 
-/**
- * 🔒 Eliminar MI publicación
- */
 export async function deleteMyPublication({ id, userId }) {
   if (!id) {
     const err = new Error("id requerido");
@@ -275,24 +255,12 @@ export async function deleteMyPublication({ id, userId }) {
     returning id
   `;
 
-  try {
-    const { rows } = await pool.query(q, [id, userIdStr]);
-    return rows[0] || null;
-  } catch (e) {
-    console.error("DB deleteMyPublication error:", {
-      message: e.message,
-      code: e.code,
-      detail: e.detail,
-      where: e.where,
-    });
-    throw e;
-  }
+  const { rows } = await pool.query(q, [id, userIdStr]);
+  return rows[0] || null;
 }
 
 /**
- * 🔒 Cambiar status (pendiente/aprobado/rechazado)
- * ⚠️ Nota: tu router ya dice que esto se eliminó para el usuario.
- * Si ya no lo usas, puedes borrarlo luego.
+ * (Opcional) Si ya NO lo usas, luego lo borras.
  */
 export async function setPublicationStatus({ id, userId, status }) {
   if (!id) {
@@ -329,17 +297,7 @@ export async function setPublicationStatus({ id, userId, status }) {
     returning id, group_id, data, user_id, status, created_at
   `;
 
-  try {
-    const { rows } = await pool.query(q, [st, id, userIdStr]);
-    const row = rows[0] || null;
-    return row ? { ...row, data: safeParseJson(row.data) } : null;
-  } catch (e) {
-    console.error("DB setPublicationStatus error:", {
-      message: e.message,
-      code: e.code,
-      detail: e.detail,
-      where: e.where,
-    });
-    throw e;
-  }
+  const { rows } = await pool.query(q, [st, id, userIdStr]);
+  const row = rows[0] || null;
+  return row ? { ...row, data: safeParseJson(row.data) } : null;
 }

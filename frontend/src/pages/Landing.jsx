@@ -53,7 +53,7 @@ export default function Landing() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
 
-  // ✅ respeta /?group=...
+  // ✅ respeta /?group=... (solo para navegación)
   const group = useMemo(() => normalizeGroup(sp.get("group") || "automotriz"), [sp]);
 
   const groupLabel = useMemo(
@@ -65,11 +65,18 @@ export default function Landing() {
   const [me, setMe] = useState(null);
   const [isAuthed, setIsAuthed] = useState(Boolean(getLocalToken()));
 
-  // preview público (GLOBAL)
+  // preview público (GLOBAL) + paginación
   const [items, setItems] = useState([]);
+  const [rowCount, setRowCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
+
+  // ✅ paginación (server)
+  const [page, setPage] = useState(0); // 0-based
+  const [pageSize, setPageSize] = useState(12);
 
   async function loadMe() {
     try {
@@ -82,26 +89,37 @@ export default function Landing() {
     }
   }
 
-  async function loadPublic() {
+  async function loadPublic({ page: p = page, pageSize: ps = pageSize } = {}) {
     setErr("");
     setLoading(true);
     try {
-      // ✅ LANDING = VISTA GLOBAL
-      // GET /publicar -> backend devuelve solo status='aprobado'
-      const resp = await api.publicar.listPublic({ limit: 24 }); // sin group
+      // ✅ LANDING = VISTA GLOBAL (sin group)
+      // backend nuevo: GET /publicar?limit=&offset=  -> { total, rows, limit, offset, hasMore }
+      const offset = p * ps;
 
-      // tu api.request() normalmente devuelve data directo si viene {ok,data}
-      const list = Array.isArray(resp) ? resp : resp?.data || resp?.items || [];
+      const resp = await api.publicar.listPublic({
+        limit: ps,
+        offset,
+      });
 
-      const mapped = list.map((row) => ({
+      // api.request() normaliza {ok,data} => resp es "data" directo
+      const total = Number(resp?.total ?? 0) || 0;
+      const rows = Array.isArray(resp?.rows) ? resp.rows : [];
+      const more = Boolean(resp?.hasMore);
+
+      const mapped = rows.map((row) => ({
         ...row,
         _data: safeJson(row?.data),
       }));
 
       setItems(mapped);
+      setRowCount(total);
+      setHasMore(more);
     } catch (e) {
       setErr(e?.message || "No se pudieron cargar publicaciones");
       setItems([]);
+      setRowCount(0);
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
@@ -109,26 +127,30 @@ export default function Landing() {
 
   useEffect(() => {
     loadMe();
-    loadPublic();
+    loadPublic({ page: 0, pageSize });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ cuando cambia página o tamaño, recargamos
+  useEffect(() => {
+    loadPublic({ page, pageSize });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     const base = items;
 
-    // ⚠️ Nota: tu landing está limitada a 6 por diseño
-    if (!s) return base.slice(0, 6);
+    // ✅ el buscador sigue siendo LOCAL (sobre la página actual)
+    if (!s) return base;
 
-    return base
-      .filter((row) => {
-        const p = row._data || {};
-        const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${
-          p.modelo || ""
-        } ${p.nombre || ""} ${row.group_id || ""}`;
-        return haystack.toLowerCase().includes(s);
-      })
-      .slice(0, 6);
+    return base.filter((row) => {
+      const p = row._data || {};
+      const haystack = `${p.titulo || ""} ${p.descripcion || ""} ${p.marca || ""} ${p.modelo || ""} ${
+        p.nombre || ""
+      } ${row.group_id || ""}`;
+      return haystack.toLowerCase().includes(s);
+    });
   }, [items, q]);
 
   // ✅ NUEVAS RUTAS (catálogo por grupo)
@@ -136,10 +158,10 @@ export default function Landing() {
     nav(`/catalogo?group=${encodeURIComponent(group)}`);
   }
 
-  // ✅ NUEVAS RUTAS (publicar dinámico por categoría)
+  // ✅ NUEVAS RUTAS (publicar dinámico)
   function goPublicar() {
     if (!getLocalToken()) return nav("/login");
-    nav("/publicar"); // selector general
+    nav("/publicar");
   }
 
   // ✅ NUEVAS RUTAS (inventario)
@@ -147,6 +169,10 @@ export default function Landing() {
     if (!getLocalToken()) return nav("/login");
     nav("/inventario");
   }
+
+  const totalPages = Math.max(1, Math.ceil(rowCount / pageSize));
+  const canPrev = page > 0;
+  const canNext = page + 1 < totalPages && (hasMore || (page + 1) * pageSize < rowCount);
 
   return (
     <div className="lp">
@@ -156,8 +182,8 @@ export default function Landing() {
           <div className="lp-hero-content">
             <h1>Catálogo por grupos: rápido, claro, confiable.</h1>
             <p>
-              Explora publicaciones por categoría principal. Enfoque actual: <b>{groupLabel}</b>.
-              Publica y administra tu inventario con una experiencia moderna.
+              Explora publicaciones por categoría principal. Enfoque actual: <b>{groupLabel}</b>. Publica y
+              administra tu inventario con una experiencia moderna.
             </p>
 
             <div className="lp-hero-cta">
@@ -171,7 +197,6 @@ export default function Landing() {
                     Publicar
                   </button>
 
-                  {/* ✅ dejamos el botón de inventario */}
                   <button className="lp-btn lp-btn-ghost" type="button" onClick={goInventario}>
                     Inventario
                   </button>
@@ -216,7 +241,7 @@ export default function Landing() {
               <button
                 className="lp-btn lp-btn-ghost"
                 type="button"
-                onClick={loadPublic}
+                onClick={() => loadPublic({ page, pageSize })}
                 disabled={loading}
               >
                 ↻ Recargar
@@ -227,13 +252,9 @@ export default function Landing() {
               </button>
 
               {isAuthed ? (
-                <>
-                  <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
-                    + Publicar
-                  </button>
-
-                  {/* ✅ BOTÓN REMOVIDO: "+ Publicar en Automotriz / {groupLabel}" */}
-                </>
+                <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
+                  + Publicar
+                </button>
               ) : (
                 <button className="lp-btn lp-btn-primary" type="button" onClick={() => nav("/register")}>
                   Publicar (crear cuenta)
@@ -242,11 +263,11 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* ✅ buscador del preview - mejor separación */}
-          <div style={{ marginTop: 18, marginBottom: 10 }}>
+          {/* buscador (local) */}
+          <div className="lp-preview-search-wrap">
             <input
               type="text"
-              placeholder="Buscar en la vista previa…"
+              placeholder="Buscar en la vista previa… (solo página actual)"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               style={{
@@ -261,21 +282,71 @@ export default function Landing() {
             />
           </div>
 
+          {/* ✅ Paginación (server) */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+            <button
+              className="lp-btn lp-btn-ghost"
+              type="button"
+              disabled={!canPrev || loading}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              ← Anterior
+            </button>
+
+            <div style={{ opacity: 0.85, fontSize: 13 }}>
+              Página <b>{page + 1}</b> de <b>{totalPages}</b> · Total: <b>{rowCount}</b>
+            </div>
+
+            <button
+              className="lp-btn lp-btn-ghost"
+              type="button"
+              disabled={!canNext || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente →
+            </button>
+
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ opacity: 0.75, fontSize: 12 }}>Por página:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPage(0);
+                  setPageSize(Number(e.target.value));
+                }}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(0,0,0,0.25)",
+                  color: "#fff",
+                  outline: "none",
+                }}
+              >
+                {[6, 12, 24].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {err && <div className="lp-alert">❌ {err}</div>}
 
           {loading ? (
             <div className="lp-skeleton-grid">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({ length: pageSize }).map((_, i) => (
                 <div className="lp-skeleton" key={i} />
               ))}
             </div>
           ) : filtered.length === 0 ? (
             <div className="lp-empty">
-              <p>No hay publicaciones disponibles todavía.</p>
+              <p>No hay publicaciones en esta página (o el filtro no encontró resultados).</p>
               {isAuthed ? (
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button className="lp-btn lp-btn-primary" type="button" onClick={goPublicar}>
-                    Publicar la primera
+                    Publicar
                   </button>
                 </div>
               ) : (
@@ -295,6 +366,8 @@ export default function Landing() {
               ))}
             </div>
           )}
+
+          <TypographyHint />
         </section>
 
         {/* ABOUT */}
@@ -317,6 +390,15 @@ export default function Landing() {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
+
+/** 👇 nota pequeña sin meter MUI aquí */
+function TypographyHint() {
+  return (
+    <div style={{ opacity: 0.7, fontSize: 12, marginTop: 10 }}>
+      Nota: el buscador es <b>local</b> (filtra solo la página actual). La paginación viene del backend.
     </div>
   );
 }

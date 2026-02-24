@@ -1,0 +1,44 @@
+/* =========================================================
+   GLOBAL THEME
+   Fondo oficial de toda la app (igual que Landing)
+   Aplica a TODAS las vistas:
+   Login, Register, Admin, Formularios, Catálogo, etc.
+========================================================= */
+
+:root{
+  /* Colores base retro neon */
+  --bg0: #0b0620;   /* morado profundo */
+  --bg1: #0a1636;   /* azul profundo */
+  --bg2: #1a0b2e;   /* vino/morado */
+
+  --text-main: rgba(255,255,255,.92);
+}
+
+/* Reset base */
+html, body, #root {
+  min-height: 100%;
+}
+
+body{
+  margin: 0;
+  color: var(--text-main);
+
+  /* 🔥 Fondo retro vibrante oficial */
+  background:
+    radial-gradient(1100px 600px at 12% 12%, rgba(255,59,129,.18), transparent 62%),
+    radial-gradient(900px 520px at 88% 22%, rgba(45,212,191,.18), transparent 62%),
+    radial-gradient(850px 520px at 55% 92%, rgba(255,183,3,.10), transparent 62%),
+    linear-gradient(180deg, var(--bg0), var(--bg1) 55%, var(--bg2));
+
+  background-attachment: fixed; /* ✅ efecto elegante al hacer scroll */
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* Evita que algún componente sobrescriba el fondo */
+.auth-page,
+.lp,
+.admin-page,
+.catalogo-page {
+  background: transparent !important;
+}

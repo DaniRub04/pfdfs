@@ -24,11 +24,20 @@ function toSafeLimit(limitRaw, def = 20, max = 200) {
   return Number.isFinite(n) && n > 0 ? Math.min(n, max) : def;
 }
 
+function toSafeOffset(offsetRaw) {
+  const n = Number(offsetRaw);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 /**
  * GET /publicar
  * Público: lista publicaciones APROBADAS (landing/catálogo)
  * Opcional: ?group=automotriz|marketplace|...
  * Opcional: ?limit=20
+ * Opcional: ?offset=0
+ *
+ * ✅ Ahora devuelve:
+ * { total, rows, limit, offset, hasMore }
  */
 export async function listarPublicaciones(req, res, next) {
   try {
@@ -36,17 +45,19 @@ export async function listarPublicaciones(req, res, next) {
     const group = groupRaw ? normalizeGroup(groupRaw) : null;
 
     const limit = toSafeLimit(req.query.limit, 20, 200);
+    const offset = toSafeOffset(req.query.offset);
 
     if (group && !VALID_GROUPS.has(group)) {
       return res.status(400).json({ ok: false, message: "group no válido", group });
     }
 
-    const publicaciones = await listPublications({
+    const result = await listPublications({
       group,
       limit,
+      offset,
     });
 
-    return res.json({ ok: true, data: publicaciones });
+    return res.json({ ok: true, data: result });
   } catch (err) {
     console.error("LISTAR PUBLICACIONES ERROR:", err);
     return next(err);
@@ -66,7 +77,6 @@ export async function publicar(req, res, next) {
     const body = req.body ?? {};
     const data = body.data && typeof body.data === "object" ? body.data : body;
 
-    // group puede venir en body o dentro de data
     const group = body.group ?? data.group;
 
     if (!group || typeof group !== "string") {
@@ -86,10 +96,8 @@ export async function publicar(req, res, next) {
       return res.status(400).json({ ok: false, message: "data requerido (objeto)" });
     }
 
-    // Evita que data tenga group duplicado/conflictivo
     const { group: _ignored, ...dataClean } = data;
 
-    // auth middleware setea req.user
     const userId = req.user?.id ?? null;
 
     const created = await createPublication({
@@ -153,7 +161,6 @@ export async function editarMiPublicacion(req, res, next) {
       return res.status(400).json({ ok: false, message: "data requerido (objeto)" });
     }
 
-    // evita group duplicado si llega
     const { group: _ignored, ...dataClean } = data;
 
     const updated = await updateMyPublication({ id, userId, data: dataClean });
