@@ -181,6 +181,9 @@ export default function Catalogo() {
     setOrder("recientes");
   }
 
+  // ✅ Si quieres mostrar el hint SOLO en tu máquina local:
+  const showDevHint = import.meta.env.DEV; // en Vercel = false
+
   return (
     <Box>
       <Typography variant="h4" sx={{ fontWeight: 900, mb: 0.5 }}>
@@ -313,9 +316,12 @@ export default function Catalogo() {
             </Box>
           )}
 
-          <Typography sx={{ opacity: 0.6, fontSize: 12, mt: 2 }}>
-            Vista conectada al endpoint público: <b>/publicar?group=...&limit=...</b> (solo aprobadas)
-          </Typography>
+          {/* ✅ Debug SOLO local (no se ve en Vercel) */}
+          {showDevHint && (
+            <Typography sx={{ opacity: 0.6, fontSize: 12, mt: 2 }}>
+              DEV: endpoint público → <b>/publicar?group=...&limit=...</b>
+            </Typography>
+          )}
         </Paper>
       </Box>
     </Box>
