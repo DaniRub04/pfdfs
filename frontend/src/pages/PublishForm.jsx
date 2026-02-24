@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getGroupConfig } from "../config/catalogoConfig";
 import { api } from "../services/api";
@@ -42,9 +42,47 @@ export default function PublishForm() {
 
   const cfg = useMemo(() => getGroupConfig(group), [group]);
 
-  // ✅ Guardamos SOLO campos del formulario, no metemos group aquí
+  // ✅ SOLO campos del formulario (data). group NO va aquí.
   const [form, setForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // ✅ Si tu schema tiene "categoria", la llenamos por defecto con el grupo y la bloqueamos
+  // (así el usuario no la escribe manualmente)
+  const schema = useMemo(() => cfg?.publishSchema || [], [cfg]);
+
+  const schemaWithCategory = useMemo(() => {
+    const g = String(group || "").trim();
+    if (!g) return schema;
+
+    return schema.map((f) => {
+      if (String(f?.name || "").toLowerCase() !== "categoria") return f;
+
+      // si ya existe "categoria" en el schema, la volvemos readonly/disabled para el usuario
+      return {
+        ...f,
+        type: "text",
+        required: false, // no la forzamos en validación porque la seteamos nosotros
+        readOnly: true,
+        disabled: true,
+        placeholder: g,
+      };
+    });
+  }, [schema, group]);
+
+  // ✅ precarga categoria una sola vez (o cuando cambia el group)
+  useEffect(() => {
+    const hasCategoria = schema.some((f) => String(f?.name || "").toLowerCase() === "categoria");
+    if (!hasCategoria) return;
+
+    const g = String(group || "").trim();
+    if (!g) return;
+
+    setForm((prev) => {
+      // no pisar si el usuario ya tenía algo (aunque estará disabled, pero por seguridad)
+      if (String(prev?.categoria ?? "").trim()) return prev;
+      return { ...prev, categoria: g };
+    });
+  }, [schema, group]);
 
   if (!cfg) {
     return (
@@ -56,12 +94,17 @@ export default function PublishForm() {
   }
 
   function setField(name, val) {
+    // ✅ si es categoria, la protegemos para que no se cambie desde UI
+    if (String(name || "").toLowerCase() === "categoria") return;
     setForm((prev) => ({ ...prev, [name]: val }));
   }
 
   function validate() {
-    const schema = cfg.publishSchema || [];
-    return schema.filter((f) => f.required && !String(form[f.name] ?? "").trim());
+    return schemaWithCategory.filter((f) => {
+      // si es categoria y viene bloqueada, no la validamos aquí
+      if (String(f?.name || "").toLowerCase() === "categoria") return false;
+      return f.required && !String(form[f.name] ?? "").trim();
+    });
   }
 
   async function onSubmit(e) {
@@ -77,10 +120,15 @@ export default function PublishForm() {
     setSubmitting(true);
 
     try {
-      // ✅ Publica usando tu API centralizada (usa token automáticamente)
+      // ✅ fuerza categoria por defecto (aunque no exista en schema)
+      const dataToSend = {
+        ...form,
+        categoria: String(group || "").trim(), // <- default para todos los formularios
+      };
+
       await api.publicar.create({
-        group,     // va a group_id en BD
-        data: form // jsonb en BD
+        group, // va a group_id en BD
+        data: dataToSend, // jsonb en BD
       });
 
       alert("Publicado correctamente ✅");
@@ -98,15 +146,39 @@ export default function PublishForm() {
       <p style={{ opacity: 0.8 }}>{cfg.desc}</p>
 
       <form onSubmit={onSubmit} style={{ marginTop: 16, maxWidth: 720 }}>
-        {(cfg.publishSchema || []).map((f) => (
-          <div key={f.name} style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 6 }}>
-              {f.label} {f.required ? "*" : ""}
-            </label>
+        {(schemaWithCategory || []).map((f) => {
+          const isCategoria = String(f?.name || "").toLowerCase() === "categoria";
+          const g = String(group || "").trim();
 
-            <Field field={f} value={form[f.name]} onChange={(v) => setField(f.name, v)} />
-          </div>
-        ))}
+          return (
+            <div key={f.name} style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", marginBottom: 6 }}>
+                {f.label} {f.required ? "*" : ""}
+              </label>
+
+              {isCategoria ? (
+                <input
+                  type="text"
+                  value={String(form.categoria ?? g)}
+                  disabled
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.03)",
+                    color: "inherit",
+                    outline: "none",
+                    opacity: 0.85,
+                    cursor: "not-allowed",
+                  }}
+                />
+              ) : (
+                <Field field={f} value={form[f.name]} onChange={(v) => setField(f.name, v)} />
+              )}
+            </div>
+          );
+        })}
 
         <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
           <button type="button" onClick={() => nav("/publicar")} disabled={submitting}>
